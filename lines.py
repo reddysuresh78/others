@@ -1,37 +1,44 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
-# Load the image
-image = cv2.imread('image.jpg')
+# image path:
+#path = "D://opencvImages//"
+#fileName = "out.jpg"
 
-# Convert the image to HSV color space
-hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+# Reading an image in default mode:
+inputImage = cv2.imread('image.jpg')
 
-# Define range for blue color
-lower_blue = np.array([110,50,50])
-upper_blue = np.array([130,255,255])
+# Convert RGB to grayscale:
+grayscaleImage = cv2.cvtColor(inputImage, cv2.COLOR_BGR2GRAY)
 
-# Create a mask
-mask = cv2.inRange(hsv, lower_blue, upper_blue)
+# Convert the BGR image to HSV:
+hsvImage = cv2.cvtColor(inputImage, cv2.COLOR_BGR2HSV)
 
-# Use Hough Line Transform to detect lines
-lines = cv2.HoughLines(mask, 1, np.pi/180, 100)
+# Create the HSV range for the blue ink:
+# [128, 255, 255], [90, 50, 70]
+lowerValues = np.array([90, 50, 70])
+upperValues = np.array([128, 255, 255])
 
-# Draw the lines on the original image
-if lines is not None:
-    for rho, theta in lines[:, 0]:
-        a = np.cos(theta)
-        b = np.sin(theta)
-        x0 = a * rho
-        y0 = b * rho
-        x1 = int(x0 + 1000 * (-b))
-        y1 = int(y0 + 1000 * (a))
-        x2 = int(x0 - 1000 * (-b))
-        y2 = int(y0 - 1000 * (a))
+# Get binary mask of the blue ink:
+bluepenMask = cv2.inRange(hsvImage, lowerValues, upperValues)
+# Use a little bit of morphology to clean the mask:
+# Set kernel (structuring element) size:
+kernelSize = 3
+# Set morph operation iterations:
+opIterations = 1
+# Get the structuring element:
+morphKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernelSize, kernelSize))
+# Perform closing:
+bluepenMask = cv2.morphologyEx(bluepenMask, cv2.MORPH_CLOSE, morphKernel, None, None, opIterations, cv2.BORDER_REFLECT101)
 
-        cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
-
-# Show the image
-cv2.imshow('image', image)
+# Add the white mask to the grayscale image:
+colorMask = cv2.add(grayscaleImage, bluepenMask)
+_, binaryImage = cv2.threshold(colorMask, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+cv2.imwrite('bwimage.jpg',binaryImage)
+thresh, im_bw = cv2.threshold(binaryImage, 210, 230, cv2.THRESH_BINARY)
+kernel = np.ones((1, 1), np.uint8)
+imgfinal = cv2.dilate(im_bw, kernel=kernel, iterations=1)
+cv2.imshow("final",imgfinal)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
