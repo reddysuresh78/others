@@ -1,32 +1,37 @@
-
 import cv2
 import numpy as np
 
-img = cv2.imread('/Users/sureshreddy/input.png')
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-lines_list =[]
-lines = cv2.HoughLinesP(
-            edges, # Input edge image
-            1, # Distance resolution in pixels
-            np.pi/180, # Angle resolution in radians
-            threshold=20, # Min number of votes for valid line
-            minLineLength=50, # Min allowed length of line
-            maxLineGap=50 # Max allowed gap between line for joining them
-            )
+# Load the image
+image = cv2.imread('image.jpg')
 
-print(len(lines))
-  
-# Iterate over points
-for points in lines:
-      # Extracted points nested in the list
-    x1,y1,x2,y2=points[0]
-    # Draw the lines joing the points
-    # On the original image
-    cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
-    # Maintain a simples lookup list for points
-    lines_list.append([(x1,y1),(x2,y2)])
+# Convert the image to HSV color space
+hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-cv2.imshow('image', img)
+# Define range for blue color
+lower_blue = np.array([110,50,50])
+upper_blue = np.array([130,255,255])
+
+# Create a mask
+mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+# Use Hough Line Transform to detect lines
+lines = cv2.HoughLines(mask, 1, np.pi/180, 100)
+
+# Draw the lines on the original image
+if lines is not None:
+    for rho, theta in lines[:, 0]:
+        a = np.cos(theta)
+        b = np.sin(theta)
+        x0 = a * rho
+        y0 = b * rho
+        x1 = int(x0 + 1000 * (-b))
+        y1 = int(y0 + 1000 * (a))
+        x2 = int(x0 - 1000 * (-b))
+        y2 = int(y0 - 1000 * (a))
+
+        cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
+# Show the image
+cv2.imshow('image', image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
