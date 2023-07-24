@@ -1,17 +1,33 @@
-const pdfjsLib = require("pdfjs-dist");
+const { PDFDocument, rgb } = require('pdf-lib');
+const fs = require('fs').promises;
 
-async function GetTextFromPDF(path) {
-    let doc = await pdfjsLib.getDocument(path).promise;
-    let page1 = await doc.getPage(1);
-    let content = await page1.getTextContent();
-    let strings = content.items.map(function(item) {
-        return item.str;
-    });
-    return strings;
+async function extractAndCreatePDF(inputPath, startPage, endPage, outputPath) {
+  try {
+    // Read the input PDF
+    const pdfBytes = await fs.readFile(inputPath);
+
+    // Load the input PDF into a PDFDocument object
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+
+    // Create a new PDF with the specified pages
+    const newPDFDoc = await PDFDocument.create();
+
+    for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
+      const [copiedPage] = await newPDFDoc.copyPages(pdfDoc, [pageNum - 1]);
+      newPDFDoc.addPage(copiedPage);
+    }
+
+    // Serialize the new PDF to bytes
+    const newPDFBytes = await newPDFDoc.save();
+
+    // Write the new PDF to the output file
+    await fs.writeFile(outputPath, newPDFBytes);
+
+    console.log(`Pages ${startPage}-${endPage} extracted and a new PDF created at: ${outputPath}`);
+  } catch (err) {
+    console.error('Error:', err.message);
+  }
 }
-module.exports = { GetTextFromPDF }
 
-
-
-const pdfExport = require('./pdfreader');
-pdfExport.GetTextFromPDF('/Users/sureshreddy/Documents/Prepared/GIDS_QC_speaker_notes.pdf').then(data => console.log(data));
+// Usage example
+extractAndCreatePDF('input.pdf', 2, 4, 'output.pdf');
