@@ -1,22 +1,22 @@
-const { PDFDocument, rgb } = require('pdf-lib');
-const fs = require('fs').promises;
+const { PDFDocument } = require('pdf-lib');
+const { PDFJS } = require('pdfjs-dist/es5/build/pdf');
 
 async function extractAndCreatePDF(inputPath, contentToMatch, outputPath) {
   try {
     // Read the input PDF
-    const pdfBytes = await fs.readFile(inputPath);
-
-    // Load the input PDF into a PDFDocument object
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pdfBytes = await PDFJS.getDocument(inputPath).promise;
+    const numPages = pdfBytes.numPages;
 
     // Create a new PDF
     const newPDFDoc = await PDFDocument.create();
 
-    for (let pageNum = 0; pageNum < pdfDoc.getPageCount(); pageNum++) {
-      const page = pdfDoc.getPage(pageNum);
-      const content = await page.getText();
-      if (content.includes(contentToMatch)) {
-        const [copiedPage] = await newPDFDoc.copyPages(pdfDoc, [pageNum]);
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdfBytes.getPage(pageNum);
+      const content = await page.getTextContent();
+      const text = content.items.map(item => item.str).join('');
+
+      if (text.includes(contentToMatch)) {
+        const [copiedPage] = await newPDFDoc.copyPages(pdfBytes, [pageNum - 1]);
         newPDFDoc.addPage(copiedPage);
       }
     }
