@@ -1,33 +1,61 @@
-const { PDFDocument, rgb } = require('pdf-lib');
-const fs = require('fs').promises;
+// src/App.js (React)
 
-async function extractAndCreatePDF(inputPath, startPage, endPage, outputPath) {
-  try {
-    // Read the input PDF
-    const pdfBytes = await fs.readFile(inputPath);
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Route, Link } from 'react-router-dom';
 
-    // Load the input PDF into a PDFDocument object
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+const API_URL = 'http://localhost:5000/api/data'; // Replace with your Node.js API URL
 
-    // Create a new PDF with the specified pages
-    const newPDFDoc = await PDFDocument.create();
+function TablePage() {
+  const [data, setData] = useState([]);
 
-    for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
-      const [copiedPage] = await newPDFDoc.copyPages(pdfDoc, [pageNum - 1]);
-      newPDFDoc.addPage(copiedPage);
-    }
+  useEffect(() => {
+    fetch(API_URL)
+      .then((response) => response.json())
+      .then((data) => setData(data))
+      .catch((error) => console.error('Error fetching data:', error));
+  }, []);
 
-    // Serialize the new PDF to bytes
-    const newPDFBytes = await newPDFDoc.save();
-
-    // Write the new PDF to the output file
-    await fs.writeFile(outputPath, newPDFBytes);
-
-    console.log(`Pages ${startPage}-${endPage} extracted and a new PDF created at: ${outputPath}`);
-  } catch (err) {
-    console.error('Error:', err.message);
-  }
+  return (
+    <div>
+      <h2>JSON Data Table</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Age</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item) => (
+            <tr key={item.id}>
+              <td>{item.id}</td>
+              <td>{item.name}</td>
+              <td>{item.age}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
-// Usage example
-extractAndCreatePDF('input.pdf', 2, 4, 'output.pdf');
+function App() {
+  return (
+    <Router>
+      <div>
+        <nav>
+          <ul>
+            <li>
+              <Link to="/table">Table</Link>
+            </li>
+          </ul>
+        </nav>
+
+        <Route path="/table" component={TablePage} />
+      </div>
+    </Router>
+  );
+}
+
+export default App;
