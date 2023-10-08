@@ -11,45 +11,83 @@ class ImageEditor:
         self.root = root
         root.title("Image Editor")
 
-        self.upload_button = tk.Button(root, text="Upload Image", command=self.upload_image)
-        self.upload_button.pack()
+        controls_frame = tk.Frame(root)
+        controls_frame.grid(row=0, column=0, sticky="nsew")
 
-        self.canvas_orig = tk.Canvas(root)
-        self.canvas_orig.pack(side=tk.LEFT)
+        self.upload_button = tk.Button(controls_frame, text="Upload Image", command=self.upload_image, height=2)
+        self.upload_button.pack(fill=tk.BOTH)
 
-        self.canvas_mod = tk.Canvas(root)
-        self.canvas_mod.pack(side=tk.RIGHT)
+        self.size_scale = tk.Scale(controls_frame, from_=0.1, to=2, resolution=0.1, orient=tk.HORIZONTAL, label="Size")
+        self.size_scale.set(1.0) 
+        self.size_scale.pack(fill=tk.BOTH)
 
-        self.brightness_scale = tk.Scale(root, from_=0, to=2, resolution=0.01, orient=tk.HORIZONTAL, label="Brightness")
-        self.brightness_scale.set(1)
-        self.brightness_scale.pack()
+        self.sharpness_scale = tk.Scale(controls_frame, from_=0, to=5, resolution=0.1, orient=tk.HORIZONTAL, label="Sharpness")
+        self.sharpness_scale.set( 5)  
+        self.sharpness_scale.pack(fill=tk.BOTH)
 
-        self.apply_button = tk.Button(root, text="Apply", command=self.apply_changes)
-        self.apply_button.pack()
+        self.threshold_scale = tk.Scale(controls_frame, from_=0, to=100, resolution=1, orient=tk.HORIZONTAL, label="Threshold")
+        self.threshold_scale.set(70) 
+        self.threshold_scale.pack(fill=tk.BOTH)
+
+        self.contrast_scale = tk.Scale(controls_frame, from_=0, to=2, resolution=0.1, orient=tk.HORIZONTAL, label="Contrast")
+        self.contrast_scale.set(0.3) 
+        self.contrast_scale.pack(fill=tk.BOTH)
+
+        self.apply_button = tk.Button(controls_frame, text="Apply", command=self.apply_changes)
+        self.apply_button.pack(fill=tk.BOTH)
+
+        self.create_canvas_with_scrollbars(row=0, column=1, name='canvas_orig')
+        self.create_canvas_with_scrollbars(row=1, column=0, name='canvas_mod')
 
         self.text_box = tk.Text(root, width=40, height=10)
-        self.text_box.pack()
+        self.text_box.grid(row=1, column=1, sticky="nsew")
+
+        root.grid_rowconfigure(0, weight=1)
+        root.grid_columnconfigure(1, weight=1)
+        root.grid_rowconfigure(1, weight=1)
+        root.grid_columnconfigure(0, weight=1)
+
+    def create_canvas_with_scrollbars(self, row, column, name):
+        frame = tk.Frame(self.root)
+        frame.grid(row=row, column=column, sticky="nsew")
+
+        canvas = tk.Canvas(frame)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        scrollbar_x = tk.Scrollbar(frame, orient="horizontal", command=canvas.xview)
+        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
+        scrollbar_y = tk.Scrollbar(frame, command=canvas.yview)
+        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
+
+        canvas.configure(xscrollcommand=scrollbar_x.set, yscrollcommand=scrollbar_y.set)
+        setattr(self, name, canvas)
 
     def upload_image(self):
-        file_path = filedialog.askopenfilename()
-        if file_path:
-            with Image(filename=file_path) as img:
-                self.original_img = img.clone()
-                self.display_image(img, self.canvas_orig)
-
+            file_path = filedialog.askopenfilename()
+            if file_path:
+                with Image(filename=file_path) as img:
+                    self.original_img = img.clone()
+                    self.display_image(img, self.canvas_orig)
+                    self.apply_changes()
     def display_image(self, wand_img, canvas):
         img_byte_arr = io.BytesIO()
         wand_img.save(file=img_byte_arr)
         img_byte_arr.seek(0)
         pil_img = PILImage.open(img_byte_arr)
         tk_img = ImageTk.PhotoImage(pil_img)
-        canvas.create_image(0, 0, anchor=tk.NW, image=tk_img)
+        canvas.config(width=tk_img.width(), height=tk_img.height())  # Set canvas dimensions to match image dimensions
+        canvas.delete("all")  # Clear previous image
+        canvas.create_image(0, 0, anchor=tk.NW, image=tk_img)  # Place image at top-left corner
         canvas.image = tk_img  # keep a reference to prevent garbage collection
         return pil_img  # return PIL image for further processing
 
     def apply_changes(self):
+        # Example transformation (replace with your actual transformation code)
         with self.original_img.clone() as img:
-            img.modulate(brightness=self.brightness_scale.get())
+            img.resize(int(img.width * self.size_scale.get()))
+            img.sharpen(self.sharpness_scale.get())
+            img.threshold(self.threshold_scale.get() / 255.0)
+            img.contrast_stretch(0, self.contrast_scale.get()//100)
             pil_img = self.display_image(img, self.canvas_mod)
             self.perform_ocr(pil_img)
 
@@ -60,5 +98,6 @@ class ImageEditor:
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.state('zoomed')  # Start the application in maximized mode
     app = ImageEditor(root)
     root.mainloop()
