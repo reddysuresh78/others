@@ -1,0 +1,30 @@
+Privacy Policy
+
+Effective Date: 20-Nov-2024
+
+Meena2 Astrology Software ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy outlines the practices for our Android application, which provides astrology-related content and services. By using our app, you agree to the terms outlined in this policy.
+
+1. Information We Do Not Collect
+We do not collect, store, or process any personal information from our users, including but not limited to:
+
+Personal identifiable information (e.g., name, email address, phone number)
+Payment information
+Location data
+Sensitive personal information (e.g., health, religion, or political beliefs)
+2. Data Usage
+Our app is designed to provide astrology-related features and content without requiring user data. All functionalities of the app operate independently and do not involve any data collection or sharing.
+
+3. Third-Party Services
+Our app does not use third-party analytics tools, payment processors, or advertising networks that may collect or process your information.
+
+4. Security
+Even though we do not collect user data, we are committed to maintaining a secure environment for our app. In the event of any technical issues or security concerns, we will act promptly to ensure the app remains safe for all users.
+
+5. Children’s Privacy
+Our app is not directed toward children under the age of 13, and we do not knowingly collect data from children. If you believe a child has used our app and provided any information, please contact us so we can address the issue promptly.
+
+6. Changes to This Privacy Policy
+We may update this Privacy Policy from time to time. Any changes will be reflected on this page, and the "Effective Date" will be updated accordingly. Please review this Privacy Policy periodically to stay informed about how we are protecting your privacy.
+
+7. Contact Us
+If you have any questions or concerns about this Privacy Policy or our practices, please contact us at: reddysureshcmc@gmail.com
