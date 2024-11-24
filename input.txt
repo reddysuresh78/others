@@ -1,3 +1,53 @@
+import http.server
+import socketserver
+import requests
+
+# Define the proxy handler
+class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Forward GET request
+        self.forward_request()
+
+    def do_POST(self):
+        # Forward POST request
+        self.forward_request()
+
+    def forward_request(self):
+        # Construct the URL of the destination server
+        target_url = f"http://{self.headers['Host']}{self.path}"
+
+        # Get the headers and body from the client request
+        headers = {key: value for key, value in self.headers.items()}
+
+        # Forward the request based on the method
+        if self.command == "GET":
+            response = requests.get(target_url, headers=headers)
+        elif self.command == "POST":
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            response = requests.post(target_url, headers=headers, data=body)
+        else:
+            self.send_response(405)
+            self.end_headers()
+            self.wfile.write(b"Method not supported")
+            return
+
+        # Send the response back to the client
+        self.send_response(response.status_code)
+        for key, value in response.headers.items():
+            self.send_header(key, value)
+        self.end_headers()
+        self.wfile.write(response.content)
+
+# Start the proxy server
+def run_proxy(port=8080):
+    with socketserver.ThreadingTCPServer(("", port), ProxyHTTPRequestHandler) as httpd:
+        print(f"Serving proxy on port {port}")
+        httpd.serve_forever()
+
+if __name__ == "__main__":
+    run_proxy()
+
 
 from airllm import AirLLMLlama2
 
