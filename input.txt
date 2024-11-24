@@ -2,42 +2,86 @@ import http.server
 import socketserver
 import requests
 
-# Define the proxy handler
 class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
-    def do_GET(self):
-        # Forward GET request
-        self.forward_request()
-
-    def do_POST(self):
-        # Forward POST request
-        self.forward_request()
-
-    def forward_request(self):
-        # Construct the URL of the destination server
+    def handle_request(self):
+        # Construct the target URL
         target_url = f"http://{self.headers['Host']}{self.path}"
 
-        # Get the headers and body from the client request
+        # Extract headers from the client request
         headers = {key: value for key, value in self.headers.items()}
 
-        # Forward the request based on the method
-        if self.command == "GET":
-            response = requests.get(target_url, headers=headers)
-        elif self.command == "POST":
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            response = requests.post(target_url, headers=headers, data=body)
-        else:
-            self.send_response(405)
-            self.end_headers()
-            self.wfile.write(b"Method not supported")
-            return
+        # Extract the body (if present)
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length) if content_length > 0 else None
 
-        # Send the response back to the client
+        # Print the intercepted body
+        if body:
+            print(f"Request Body for {self.command} {self.path}:\n{body.decode('utf-8', errors='replace')}")
+
+        # Forward the request based on the method
+        try:
+            response = self.forward_to_target(target_url, headers, body)
+            self.send_response_to_client(response)
+        except Exception as e:
+            self.send_error(500, f"Internal server error: {e}")
+
+    def forward_to_target(self, url, headers, body):
+        """
+        Forward the intercepted request to the target server.
+        """
+        method = self.command
+        if method == "GET":
+            return requests.get(url, headers=headers)
+        elif method == "POST":
+            return requests.post(url, headers=headers, data=body)
+        elif method == "PUT":
+            return requests.put(url, headers=headers, data=body)
+        elif method == "DELETE":
+            return requests.delete(url, headers=headers, data=body)
+        elif method == "HEAD":
+            return requests.head(url, headers=headers)
+        elif method == "OPTIONS":
+            return requests.options(url, headers=headers)
+        elif method == "PATCH":
+            return requests.patch(url, headers=headers, data=body)
+        else:
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+    def send_response_to_client(self, response):
+        """
+        Forward the response back to the client.
+        """
+        # Send the status code
         self.send_response(response.status_code)
+
+        # Send headers
         for key, value in response.headers.items():
             self.send_header(key, value)
         self.end_headers()
+
+        # Send the body
         self.wfile.write(response.content)
+
+    def do_GET(self):
+        self.handle_request()
+
+    def do_POST(self):
+        self.handle_request()
+
+    def do_PUT(self):
+        self.handle_request()
+
+    def do_DELETE(self):
+        self.handle_request()
+
+    def do_HEAD(self):
+        self.handle_request()
+
+    def do_OPTIONS(self):
+        self.handle_request()
+
+    def do_PATCH(self):
+        self.handle_request()
 
 # Start the proxy server
 def run_proxy(port=8080):
