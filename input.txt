@@ -1,24 +1,63 @@
 import http.server
 import socketserver
+import socket
 import requests
 
 class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
+    def do_CONNECT(self):
+        """
+        Handle CONNECT requests to establish an HTTPS tunnel.
+        """
+        try:
+            # Extract the host and port
+            host, port = self.path.split(":")
+            port = int(port)
+
+            # Create a socket to connect to the destination
+            with socket.create_connection((host, port)) as upstream_socket:
+                # Respond to the client to indicate the tunnel is ready
+                self.send_response(200)
+                self.end_headers()
+
+                # Forward data between client and upstream server
+                self._forward_data(self.connection, upstream_socket)
+        except Exception as e:
+            self.send_error(500, f"Error establishing CONNECT tunnel: {e}")
+
+    def _forward_data(self, client_socket, upstream_socket):
+        """
+        Forward data between client and upstream server.
+        """
+        sockets = [client_socket, upstream_socket]
+        while True:
+            readable, _, _ = select.select(sockets, [], sockets)
+            for sock in readable:
+                data = sock.recv(4096)
+                if not data:
+                    return
+                # Send the data to the other socket
+                if sock is client_socket:
+                    upstream_socket.sendall(data)
+                else:
+                    client_socket.sendall(data)
+
     def handle_request(self):
+        """
+        Handle regular HTTP/HTTPS requests.
+        """
         # Construct the target URL
         target_url = f"http://{self.headers['Host']}{self.path}"
 
-        # Extract headers from the client request
+        # Extract headers and body from the client request
         headers = {key: value for key, value in self.headers.items()}
-
-        # Extract the body (if present)
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length) if content_length > 0 else None
 
-        # Print the intercepted body
+        # Log the request body
         if body:
             print(f"Request Body for {self.command} {self.path}:\n{body.decode('utf-8', errors='replace')}")
 
-        # Forward the request based on the method
+        # Forward the request to the destination
         try:
             response = self.forward_to_target(target_url, headers, body)
             self.send_response_to_client(response)
@@ -62,6 +101,7 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         # Send the body
         self.wfile.write(response.content)
 
+    # Handle HTTP methods
     def do_GET(self):
         self.handle_request()
 
@@ -83,14 +123,18 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_PATCH(self):
         self.handle_request()
 
+
 # Start the proxy server
 def run_proxy(port=8080):
     with socketserver.ThreadingTCPServer(("", port), ProxyHTTPRequestHandler) as httpd:
         print(f"Serving proxy on port {port}")
         httpd.serve_forever()
 
+
 if __name__ == "__main__":
+    import select
     run_proxy()
+
 
 
 from airllm import AirLLMLlama2
