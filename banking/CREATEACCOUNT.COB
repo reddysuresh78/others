@@ -1,0 +1,14 @@
+IDENTIFICATION DIVISION.
+PROGRAM-ID. CREATEACCOUNT.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-ACCOUNT-NUM PIC 9(5).
+01 WS-MESSAGE     PIC X(30).
+
+PROCEDURE DIVISION USING WS-ACCOUNT-NUM.
+    DISPLAY "Enter Account Number (5 digits): ".
+    ACCEPT WS-ACCOUNT-NUM.
+    DISPLAY "Account Number: ", WS-ACCOUNT-NUM, " has been created.".
+    DISPLAY "Please deposit an initial amount via the Deposit option.".
+    STOP RUN.
