@@ -1,0 +1,178 @@
+This file is a merged representation of the entire codebase, combining all repository files into a single document.
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Repository structure
+4. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+Usage Guidelines:
+-----------------
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+Notes:
+------
+- Some files may have been excluded based on .gitignore rules and Repomix's
+  configuration.
+- Binary files are not included in this packed representation. Please refer to
+  the Repository Structure section for a complete list of file paths, including
+  binary files.
+
+Additional Info:
+----------------
+
+For more information about Repomix, visit: https://github.com/yamadashy/repomix
+
+================================================================
+Repository Structure
+================================================================
+BALANCEINQUIRY.COB
+BANKMAIN.COB
+CREATEACCOUNT.COB
+DEPOSIT.COB
+WITHDRAW.COB
+
+================================================================
+Repository Files
+================================================================
+
+================
+File: BALANCEINQUIRY.COB
+================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. BALANCEINQUIRY.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-ACCOUNT-NUM PIC 9(5).
+01 WS-BALANCE     PIC 9(9)V99 VALUE 0.
+
+PROCEDURE DIVISION USING WS-ACCOUNT-NUM.
+    DISPLAY "Balance for Account Number ", WS-ACCOUNT-NUM, " is: ", WS-BALANCE.
+    STOP RUN.
+
+================
+File: BANKMAIN.COB
+================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. BANKMAIN.
+
+ENVIRONMENT DIVISION.
+CONFIGURATION SECTION.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-OPTION      PIC 9.
+01 WS-ACCOUNT-NUM PIC 9(5).
+01 WS-AMOUNT      PIC 9(9)V99.
+
+PROCEDURE DIVISION.
+    DISPLAY "=========================".
+    DISPLAY " Simple Banking System ".
+    DISPLAY "=========================".
+    DISPLAY "1. Create Account".
+    DISPLAY "2. Balance Inquiry".
+    DISPLAY "3. Deposit Money".
+    DISPLAY "4. Withdraw Money".
+    DISPLAY "5. Exit".
+    DISPLAY "Enter your option: ".
+    ACCEPT WS-OPTION.
+
+    EVALUATE WS-OPTION
+        WHEN 1
+            CALL 'CREATEACCOUNT' USING WS-ACCOUNT-NUM
+        WHEN 2
+            CALL 'BALANCEINQUIRY' USING WS-ACCOUNT-NUM
+        WHEN 3
+            CALL 'DEPOSIT' USING WS-ACCOUNT-NUM WS-AMOUNT
+        WHEN 4
+            CALL 'WITHDRAW' USING WS-ACCOUNT-NUM WS-AMOUNT
+        WHEN 5
+            DISPLAY "Thank you for using the Banking System!"
+            STOP RUN
+        WHEN OTHER
+            DISPLAY "Invalid Option, try again!"
+    END-EVALUATE.
+
+    STOP RUN.
+
+================
+File: CREATEACCOUNT.COB
+================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. CREATEACCOUNT.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-ACCOUNT-NUM PIC 9(5).
+01 WS-MESSAGE     PIC X(30).
+
+PROCEDURE DIVISION USING WS-ACCOUNT-NUM.
+    DISPLAY "Enter Account Number (5 digits): ".
+    ACCEPT WS-ACCOUNT-NUM.
+    DISPLAY "Account Number: ", WS-ACCOUNT-NUM, " has been created.".
+    DISPLAY "Please deposit an initial amount via the Deposit option.".
+    STOP RUN.
+
+================
+File: DEPOSIT.COB
+================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. DEPOSIT.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-ACCOUNT-NUM PIC 9(5).
+01 WS-AMOUNT      PIC 9(9)V99.
+01 WS-BALANCE     PIC 9(9)V99 VALUE 0.
+
+PROCEDURE DIVISION USING WS-ACCOUNT-NUM WS-AMOUNT.
+    DISPLAY "Enter deposit amount for Account Number ", WS-ACCOUNT-NUM, ": ".
+    ACCEPT WS-AMOUNT.
+    ADD WS-AMOUNT TO WS-BALANCE.
+    DISPLAY "New Balance for Account Number ", WS-ACCOUNT-NUM, " is: ", WS-BALANCE.
+    STOP RUN.
+
+================
+File: WITHDRAW.COB
+================
+IDENTIFICATION DIVISION.
+PROGRAM-ID. WITHDRAW.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-ACCOUNT-NUM PIC 9(5).
+01 WS-AMOUNT      PIC 9(9)V99.
+01 WS-BALANCE     PIC 9(9)V99 VALUE 1000.00.  *> Example starting balance.
+
+PROCEDURE DIVISION USING WS-ACCOUNT-NUM WS-AMOUNT.
+    DISPLAY "Enter withdrawal amount for Account Number ", WS-ACCOUNT-NUM, ": ".
+    ACCEPT WS-AMOUNT.
+    IF WS-AMOUNT > WS-BALANCE THEN
+        DISPLAY "Insufficient Balance. Available balance: ", WS-BALANCE
+    ELSE
+        SUBTRACT WS-AMOUNT FROM WS-BALANCE
+        DISPLAY "New Balance for Account Number ", WS-ACCOUNT-NUM, " is: ", WS-BALANCE
+    END-IF.
+    STOP RUN.
