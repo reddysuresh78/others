@@ -1,5 +1,5 @@
 curl \
-  'https://customsearch.googleapis.com/customsearch/v1?num=3&q=wells&key=aIzaSyD9RnUnzq0CAFZDOcPoOfM-l3bH4ViSi0w&cx=c24871d131e79499e' \
+  'https://customsearch.googleapis.com/customsearch/v1?num=3&q=wells&key=[key]&cx=c24871d131e79499e' \
   --header 'Accept: application/json' \
 
 "tool_choice": {"type": "function", "function": {"name": "AgentOutput"}},
