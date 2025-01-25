@@ -1,489 +1,59 @@
-curl \
-  'https://customsearch.googleapis.com/customsearch/v1?num=3&q=wells&key=[key]&cx=c24871d131e79499e' \
-  --header 'Accept: application/json' \
+import subprocess
+import platform
+import os
 
-"tool_choice": {"type": "function", "function": {"name": "AgentOutput"}},
+def record_screen_and_audio(output_file="recording.mp4", duration=10, framerate=30):
+    # Detect operating system
+    system = platform.system().lower()
 
-"tools": [
-    {
-        "type": "function",
-        "function": {
-            "name": "AgentOutput",
-            "description": "",
-            "parameters": {
-                "properties": {
-                    "current_state": {
-                        "description": "Current state of the agent",
-                        "properties": {
-                            "evaluation_previous_goal": {
-                                "type": "string"
-                            },
-                            "memory": {
-                                "type": "string"
-                            },
-                            "next_goal": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "evaluation_previous_goal",
-                            "memory",
-                            "next_goal"
-                        ],
-                        "type": "object"
-                    },
-                    "action": {
-                        "items": {
-                            "properties": {
-                                "search_google": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "query": {
-                                                    "title": "Query",
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "query"
-                                            ],
-                                            "title": "SearchGoogleAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "go_to_url": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "url": {
-                                                    "title": "Url",
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "url"
-                                            ],
-                                            "title": "GoToUrlAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "go_back": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {},
-                                            "title": "go_backParams",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "click_element": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "index": {
-                                                    "title": "Index",
-                                                    "type": "integer"
-                                                },
-                                                "xpath": {
-                                                    "anyOf": [
-                                                        {
-                                                            "type": "string"
-                                                        },
-                                                        {
-                                                            "type": "null"
-                                                        }
-                                                    ],
-                                                    "default": null,
-                                                    "title": "Xpath"
-                                                }
-                                            },
-                                            "required": [
-                                                "index"
-                                            ],
-                                            "title": "ClickElementAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "input_text": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "index": {
-                                                    "title": "Index",
-                                                    "type": "integer"
-                                                },
-                                                "text": {
-                                                    "title": "Text",
-                                                    "type": "string"
-                                                },
-                                                "xpath": {
-                                                    "anyOf": [
-                                                        {
-                                                            "type": "string"
-                                                        },
-                                                        {
-                                                            "type": "null"
-                                                        }
-                                                    ],
-                                                    "default": null,
-                                                    "title": "Xpath"
-                                                }
-                                            },
-                                            "required": [
-                                                "index",
-                                                "text"
-                                            ],
-                                            "title": "InputTextAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "switch_tab": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "page_id": {
-                                                    "title": "Page Id",
-                                                    "type": "integer"
-                                                }
-                                            },
-                                            "required": [
-                                                "page_id"
-                                            ],
-                                            "title": "SwitchTabAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "open_tab": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "url": {
-                                                    "title": "Url",
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "url"
-                                            ],
-                                            "title": "OpenTabAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "extract_content": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "value": {
-                                                    "default": "text",
-                                                    "enum": [
-                                                        "text",
-                                                        "markdown",
-                                                        "html"
-                                                    ],
-                                                    "title": "Value",
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "title": "ExtractPageContentAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "done": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "text": {
-                                                    "title": "Text",
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "text"
-                                            ],
-                                            "title": "DoneAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "scroll_down": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "amount": {
-                                                    "anyOf": [
-                                                        {
-                                                            "type": "integer"
-                                                        },
-                                                        {
-                                                            "type": "null"
-                                                        }
-                                                    ],
-                                                    "default": null,
-                                                    "title": "Amount"
-                                                }
-                                            },
-                                            "title": "ScrollAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "scroll_up": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "amount": {
-                                                    "anyOf": [
-                                                        {
-                                                            "type": "integer"
-                                                        },
-                                                        {
-                                                            "type": "null"
-                                                        }
-                                                    ],
-                                                    "default": null,
-                                                    "title": "Amount"
-                                                }
-                                            },
-                                            "title": "ScrollAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "send_keys": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "keys": {
-                                                    "title": "Keys",
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "keys"
-                                            ],
-                                            "title": "SendKeysAction",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "scroll_to_text": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "text": {
-                                                    "title": "Text",
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "text"
-                                            ],
-                                            "title": "scroll_to_textParams",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "get_dropdown_options": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "index": {
-                                                    "title": "Index",
-                                                    "type": "integer"
-                                                }
-                                            },
-                                            "required": [
-                                                "index"
-                                            ],
-                                            "title": "get_dropdown_optionsParams",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                },
-                                "select_dropdown_option": {
-                                    "anyOf": [
-                                        {
-                                            "properties": {
-                                                "index": {
-                                                    "title": "Index",
-                                                    "type": "integer"
-                                                },
-                                                "text": {
-                                                    "title": "Text",
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "required": [
-                                                "index",
-                                                "text"
-                                            ],
-                                            "title": "select_dropdown_optionParams",
-                                            "type": "object"
-                                        },
-                                        {
-                                            "type": "null"
-                                        }
-                                    ],
-                                    "default": null
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "current_state",
-                    "action"
-                ],
-                "type": "object"
-            }
-        }
-    }
-]
+    # Set input sources for macOS (you can customize based on your `ffmpeg -list_devices true -f avfoundation -i ""` output)
+    if "darwin" in system:  # macOS
+        video_input = "1"  # Screen input (use 1 for the main display on macOS)
+        audio_input = ":0"  # Default audio input (microphone)
+        command = [
+            "ffmpeg",
+            "-f", "avfoundation",             # Use avfoundation for macOS
+            "-framerate", str(framerate),     # Set frame rate
+            "-i", f"{video_input}{audio_input}",  # Combine screen and audio inputs
+            "-t", str(duration),              # Duration in seconds
+            "-preset", "ultrafast",           # Faster encoding preset
+            output_file                       # Output file
+        ]
 
+    # Set input sources for Windows (DirectShow)
+    elif "windows" in system:
+        video_input = "video=screen-capture-recorder"
+        audio_input = "audio=Microphone"
+        command = [
+            "ffmpeg",
+            "-f", "dshow",                   # Use dshow for Windows
+            "-i", f"{video_input}:{audio_input}",  # Combine screen and audio inputs
+            "-t", str(duration),            # Duration in seconds
+            "-preset", "ultrafast",         # Faster encoding preset
+            output_file                     # Output file
+        ]
 
-import asyncio
-from playwright.async_api import async_playwright
-import base64
+    # Set input sources for Linux (X11 screen and PulseAudio)
+    elif "linux" in system:
+        screen_input = ":0.0+0,0"
+        audio_input = "default"
+        command = [
+            "ffmpeg",
+            "-f", "x11grab",                 # Use x11grab for screen capture
+            "-i", screen_input,              # Screen input
+            "-f", "pulse",                   # Use PulseAudio for audio
+            "-i", audio_input,               # Audio input
+            "-t", str(duration),             # Duration in seconds
+            "-preset", "ultrafast",          # Faster encoding preset
+            output_file                      # Output file
+        ]
 
-# Callback function for when a user clicks on the page
-async def on_click(source, url, screenshot):
-    print(f"Click event captured on URL: {url}")
-    with open(f"click_screenshot.png", "wb") as f:
-        f.write(base64.b64decode(screenshot))
+    else:
+        raise Exception("Unsupported OS")
 
-# Callback function for when a user types on the page
-async def on_input(source, selector, value, screenshot):
-    print(f"User typed '{value}' in element with selector: {selector}")
-    with open(f"input_screenshot.png", "wb") as f:
-        f.write(base64.b64decode(screenshot))
+    # Execute the FFmpeg command
+    print(f"Running command: {' '.join(command)}")
+    subprocess.run(command)
 
-# Callback function for page navigations
-async def on_navigation(url, screenshot):
-    print(f"User navigated to: {url}")
-    # with open(f"navigation_screenshot.png", "wb") as f:
-    #     f.write(base64.b64decode(screenshot))
-
-# Main function
-async def main():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)  # Set headless=True for no UI
-        context = await browser.new_context()
-
-        # Use context.expose_binding instead of page.expose_function
-        await context.expose_binding("on_click", on_click)
-        await context.expose_binding("on_input", on_input)
-        
-        # Listen for new pages (tabs, popups, etc.)
-        context.on("page", lambda page: asyncio.create_task(setup_page_event_listeners(page)))
-
-        # Open a new page
-        page = await context.new_page()
-        await page.goto("https://wellsfargo.com")
-
-        # Attach listeners for clicks, input, and navigation
-        await setup_page_event_listeners(page)
-
-        print("Browser is running. Interact with the page.")
-        await asyncio.sleep(300)  # Wait for user interaction (5 minutes)
-        await browser.close()
-
-# This function attaches event listeners to a specific page
-async def setup_page_event_listeners(page):
-    # Click event listener
-    await page.evaluate("""
-        document.addEventListener('click', async event => {
-            const screenshot = await window.page.screenshot({ fullPage: false });
-            const base64Image = btoa(new Uint8Array(screenshot).reduce((data, byte) => data + String.fromCharCode(byte), ''));
-            window.on_click(window.location.href, base64Image);
-        });
-    """)
-
-    # Input event listener
-    await page.evaluate("""
-        document.addEventListener('input', async event => {
-            const target = event.target;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-                const screenshot = await window.page.screenshot({ fullPage: false });
-                const base64Image = btoa(new Uint8Array(screenshot).reduce((data, byte) => data + String.fromCharCode(byte), ''));
-                window.on_input(target.tagName, target.value, base64Image);
-            }
-        });
-    """)
-
-    # Request and navigation events
-    page.on('framenavigated', lambda frame: asyncio.create_task(handle_navigation(frame)))
-
-    print(f"Listeners attached to page: {page.url}")
-
-async def handle_navigation(frame):
-    screenshot = await frame.page.screenshot(full_page=True)
-    screenshot_base64 = base64.b64encode(screenshot).decode('utf-8')
-    await on_navigation(frame.url, screenshot_base64)
-
-# Run the script
-asyncio.run(main())
+# Call the function
+record_screen_and_audio(output_file="screen_audio_recording.mp4", duration=10, framerate=30)
