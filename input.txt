@@ -1,55 +1,40 @@
-import pandas as pd
+import base64
+import os
+from cryptography.fernet import Fernet
+from hashlib import pbkdf2_hmac
 
-# Sample DataFrames
-df1 = pd.DataFrame({
-    "Key1": ["A", "B", "C", "D"],
-    "Key2": [1, 2, 3, 4],
-    "Value1": [10, 20, 30, 40],
-    "Value2": [100, 200, 300, 400]
-})
+# 🔹 Step 1: Convert Plain Text Key into a Secure Encryption Key
+def derive_key(plain_text_key: str, salt: bytes = b"static_salt"):
+    key = pbkdf2_hmac(
+        hash_name="sha256",  # Hashing algorithm
+        password=plain_text_key.encode(),  # Convert plain text key to bytes
+        salt=salt,  # Use a static or randomly generated salt
+        iterations=100000,  # Increase to make brute-force harder
+        dklen=32,  # AES key size (32 bytes)
+    )
+    return base64.urlsafe_b64encode(key)  # Encode for Fernet compatibility
 
-df2 = pd.DataFrame({
-    "Key1": ["A", "B", "C", "E"],  # D is deleted, E is new
-    "Key2": [1, 2, 3, 5],  # Key combination changed for E
-    "Value1": [10, 25, 30, 50],  # B modified
-    "Value2": [100, 250, 300, 500]  # B modified
-})
+# 🔹 Step 2: Encrypt the Password
+def encrypt_password(password: str, plain_text_key: str) -> bytes:
+    key = derive_key(plain_text_key)
+    fernet = Fernet(key)
+    return fernet.encrypt(password.encode())
 
-# Convert (Key1, Key2) into MultiIndex for easier comparison
-df1.set_index(["Key1", "Key2"], inplace=True)
-df2.set_index(["Key1", "Key2"], inplace=True)
+# 🔹 Step 3: Decrypt the Password
+def decrypt_password(encrypted_password: bytes, plain_text_key: str) -> str:
+    key = derive_key(plain_text_key)
+    fernet = Fernet(key)
+    return fernet.decrypt(encrypted_password).decode()
 
-# Identify added keys
-added_keys = df2.loc[~df2.index.isin(df1.index)].copy()
-added_keys["Change"] = "Added"
-added_keys["Previous Value1"] = None
-added_keys["Previous Value2"] = None
+# 🔹 Example Usage
+if __name__ == "__main__":
+    user_defined_key = "mykey"  # Your plain text encryption key
+    password = "MySuperSecretPassword123!"
 
-# Identify deleted keys
-deleted_keys = df1.loc[~df1.index.isin(df2.index)].copy()
-deleted_keys["Change"] = "Deleted"
-deleted_keys["Previous Value1"] = deleted_keys["Value1"]
-deleted_keys["Previous Value2"] = deleted_keys["Value2"]
-deleted_keys["Value1"] = None
-deleted_keys["Value2"] = None
+    # Encrypt the password
+    encrypted = encrypt_password(password, user_defined_key)
+    print(f"Encrypted: {encrypted}")
 
-# Identify modified keys (common keys where either value changed)
-modified_keys = df2.loc[df2.index.isin(df1.index)].copy()
-previous_values = df1.loc[modified_keys.index]
-
-# Identify rows where either value1 or value2 changed
-changes = (modified_keys["Value1"] != previous_values["Value1"]) | (modified_keys["Value2"] != previous_values["Value2"])
-modified_keys = modified_keys[changes]
-modified_keys["Change"] = "Modified"
-modified_keys["Previous Value1"] = previous_values["Value1"]
-modified_keys["Previous Value2"] = previous_values["Value2"]
-
-# Combine all changes into a new DataFrame
-result = pd.concat([added_keys, deleted_keys, modified_keys]).reset_index()
-
-# Rename columns for clarity
-result.rename(columns={"Value1": "New Value1", "Value2": "New Value2"}, inplace=True)
-
-# Display the result
-import ace_tools as tools
-tools.display_dataframe_to_user(name="Changes in DataFrame", dataframe=result)
+    # Decrypt the password
+    decrypted = decrypt_password(encrypted, user_defined_key)
+    print(f"Decrypted: {decrypted}")
