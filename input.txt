@@ -1,37 +1,21 @@
 import pandas as pd
-from openpyxl import load_workbook
 
-def excel_to_markdown(file_path, sheet_name=0):
-    # Load the workbook and the specified sheet
-    wb = load_workbook(file_path, data_only=True)
-    sheet = wb[sheet_name] if isinstance(sheet_name, str) else wb.worksheets[sheet_name]
-    
-    # Extract merged cell ranges
-    merged_map = {}
-    
-    for merged_range in sheet.merged_cells:
-        min_row, min_col, max_row, max_col = merged_range.min_row, merged_range.min_col, merged_range.max_row, merged_range.max_col
-        main_value = sheet.cell(row=min_row, column=min_col).value
-        for row in range(min_row, max_row + 1):
-            for col in range(min_col, max_col + 1):
-                merged_map[(row, col)] = main_value
-    
-    # Convert sheet data to a list of lists
-    data = []
-    for row in sheet.iter_rows():
-        row_data = []
-        for cell in row:
-            row_data.append(merged_map.get((cell.row, cell.column), cell.value))
-        data.append(row_data)
-    
-    # Convert data into Markdown format
-    df = pd.DataFrame(data)
-    markdown_table = df.to_markdown(index=False, headers=False)
-    
-    return markdown_table
+# Sample list of lists of strings
+data = [
+    ["Name", "Age", "City"],
+    ["Alice", "25", "New York"],
+    ["Bob", "30", "San Francisco"],
+    ["Charlie", "35", "Los Angeles"]
+]
 
-# Example usage
-file_path = "example.xlsx"  # Replace with your actual file path
-sheet_name = 0  # Replace with your sheet name or index
-markdown_output = excel_to_markdown(file_path, sheet_name)
-print(markdown_output)
+# Convert to DataFrame
+df = pd.DataFrame(data[1:], columns=data[0])  # Using first row as headers
+
+# Convert all data to string to avoid boolean-related errors
+df = df.astype(str)
+
+# Convert to Markdown
+markdown_table = df.to_markdown(index=False)
+
+# Print Markdown Table
+print(markdown_table)
