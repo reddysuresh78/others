@@ -1,40 +1,28 @@
-import base64
-import os
-from cryptography.fernet import Fernet
-from hashlib import pbkdf2_hmac
 
-# 🔹 Step 1: Convert Plain Text Key into a Secure Encryption Key
-def derive_key(plain_text_key: str, salt: bytes = b"static_salt"):
-    key = pbkdf2_hmac(
-        hash_name="sha256",  # Hashing algorithm
-        password=plain_text_key.encode(),  # Convert plain text key to bytes
-        salt=salt,  # Use a static or randomly generated salt
-        iterations=100000,  # Increase to make brute-force harder
-        dklen=32,  # AES key size (32 bytes)
-    )
-    return base64.urlsafe_b64encode(key)  # Encode for Fernet compatibility
 
-# 🔹 Step 2: Encrypt the Password
-def encrypt_password(password: str, plain_text_key: str) -> bytes:
-    key = derive_key(plain_text_key)
-    fernet = Fernet(key)
-    return fernet.encrypt(password.encode())
+from pypdf import PdfReader, PdfWriter
 
-# 🔹 Step 3: Decrypt the Password
-def decrypt_password(encrypted_password: bytes, plain_text_key: str) -> str:
-    key = derive_key(plain_text_key)
-    fernet = Fernet(key)
-    return fernet.decrypt(encrypted_password).decode()
+# Open an existing PDF
+pdf_path = "/Users/sureshreddy/NotBackedupDocs/Downloads_Nobackup/sarada_hyd_delhi.pdf"
+reader = PdfReader(pdf_path)
+writer = PdfWriter()
 
-# 🔹 Example Usage
-if __name__ == "__main__":
-    user_defined_key = "mykey"  # Your plain text encryption key
-    password = "MySuperSecretPassword123!"
+# Copy pages
+for page in reader.pages:
+    writer.add_page(page)
 
-    # Encrypt the password
-    encrypted = encrypt_password(password, user_defined_key)
-    print(f"Encrypted: {encrypted}")
+# Add custom metadata
+writer.add_metadata({
+    "/Title": "Custom Metadata Example",
+    "/Author": "John Doe",
+    "/Subject": "PDF Metadata Editing",
+    "/Keywords": "Python, PDF, Metadata",
+    "/CustomProperty1": "My Custom Value",
+    "/CustomProperty2": "Another Custom Entry updated"
+})
 
-    # Decrypt the password
-    decrypted = decrypt_password(encrypted, user_defined_key)
-    print(f"Decrypted: {decrypted}")
+# Save the updated PDF
+with open("updated_example.pdf", "wb") as output_pdf:
+    writer.write(output_pdf)
+
+print("Custom metadata added successfully!")
