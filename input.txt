@@ -1,28 +1,27 @@
+import pandas as pd
+from openpyxl import load_workbook
 
+# Load the Excel file using openpyxl
+excel_file = "example.xlsx"  # Replace with your actual file
+wb = load_workbook(excel_file)
+sheet = wb.active  # Get the first sheet
 
-from pypdf import PdfReader, PdfWriter
+# Extract data while preserving merged cell values
+data = []
+for row in sheet.iter_rows(values_only=True):
+    data.append(list(row))
 
-# Open an existing PDF
-pdf_path = "/Users/sureshreddy/NotBackedupDocs/Downloads_Nobackup/sarada_hyd_delhi.pdf"
-reader = PdfReader(pdf_path)
-writer = PdfWriter()
+# Convert to Pandas DataFrame
+df = pd.DataFrame(data)
 
-# Copy pages
-for page in reader.pages:
-    writer.add_page(page)
+# Convert DataFrame to Markdown
+markdown_text = df.to_markdown(index=False)
 
-# Add custom metadata
-writer.add_metadata({
-    "/Title": "Custom Metadata Example",
-    "/Author": "John Doe",
-    "/Subject": "PDF Metadata Editing",
-    "/Keywords": "Python, PDF, Metadata",
-    "/CustomProperty1": "My Custom Value",
-    "/CustomProperty2": "Another Custom Entry updated"
-})
+# Save as a Markdown file
+markdown_file = "converted.md"
+with open(markdown_file, "w", encoding="utf-8") as f:
+    f.write(markdown_text)
 
-# Save the updated PDF
-with open("updated_example.pdf", "wb") as output_pdf:
-    writer.write(output_pdf)
-
-print("Custom metadata added successfully!")
+# Display the Markdown text
+print("Excel file with merged cells successfully converted to Markdown!")
+print(markdown_text)
