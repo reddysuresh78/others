@@ -7,29 +7,22 @@ def excel_to_markdown(file_path, sheet_name=0):
     sheet = wb[sheet_name] if isinstance(sheet_name, str) else wb.worksheets[sheet_name]
     
     # Extract merged cell ranges
-    merged_cells = sheet.merged_cells.ranges
+    merged_cells = list(sheet.merged_cells.ranges)  # Ensure it is a list
     merged_map = {}
     
     for merged_range in merged_cells:
-        min_col, min_row, max_col, max_row = merged_range.bounds
+        min_col, min_row, max_col, max_row = merged_range.min_col, merged_range.min_row, merged_range.max_col, merged_range.max_row
         main_value = sheet.cell(row=min_row, column=min_col).value
         for row in range(min_row, max_row + 1):
             for col in range(min_col, max_col + 1):
-                merged_map[(row, col)] = (main_value, min_row, min_col)
+                merged_map[(row, col)] = main_value
     
     # Convert sheet data to a list of lists
     data = []
     for row in sheet.iter_rows():
         row_data = []
         for cell in row:
-            if (cell.row, cell.column) in merged_map:
-                value, main_row, main_col = merged_map[(cell.row, cell.column)]
-                if (cell.row, cell.column) == (main_row, main_col):
-                    row_data.append(value)
-                else:
-                    row_data.append('')  # Empty string for merged cell placeholders
-            else:
-                row_data.append(cell.value)
+            row_data.append(merged_map.get((cell.row, cell.column), cell.value))
         data.append(row_data)
     
     # Convert data into Markdown format
