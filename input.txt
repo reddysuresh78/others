@@ -7,11 +7,10 @@ def excel_to_markdown(file_path, sheet_name=0):
     sheet = wb[sheet_name] if isinstance(sheet_name, str) else wb.worksheets[sheet_name]
     
     # Extract merged cell ranges
-    merged_cells = list(sheet.merged_cells.ranges)  # Ensure it is a list
     merged_map = {}
     
-    for merged_range in merged_cells:
-        min_col, min_row, max_col, max_row = merged_range.min_col, merged_range.min_row, merged_range.max_col, merged_range.max_row
+    for merged_range in sheet.merged_cells:
+        min_row, min_col, max_row, max_col = merged_range.min_row, merged_range.min_col, merged_range.max_row, merged_range.max_col
         main_value = sheet.cell(row=min_row, column=min_col).value
         for row in range(min_row, max_row + 1):
             for col in range(min_col, max_col + 1):
