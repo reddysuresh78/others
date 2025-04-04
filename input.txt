@@ -1,11 +1,18 @@
-from playwright.sync_playwright import sync_playwright
-
-with sync_playwright() as p:
-    browser = p.chromium.launch()
-    page = browser.new_page()
-
-    page.on("dialog", lambda dialog: dialog.accept(prompt_text="Your Input Value"))
-    page.goto("your_website_with_prompt")
-    page.locator("button_triggering_prompt").click()
-
-    browser.close()
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Prompt Example</title>
+    <script>
+      function askUser() {
+        const userInput = prompt("Please enter your name:");
+        if (userInput !== null) {
+          document.getElementById("output").textContent = "Hello, " + userInput + "!";
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <button onclick="askUser()">Click to Enter Name</button>
+    <p id="output"></p>
+  </body>
+</html>
