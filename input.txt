@@ -1,1 +1,28 @@
-i want to search a set of contracts that are available in vector database. When the user asks a question, i would like to first search the vector db, retrieve the chunks that match the question and then use this as a context to answer the main question by LLM. I want you take the question and tell me which keywords should i use for searching the vector database. The question asked is: how many contracts are there for service now for the year 2023.
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=False)
+    page = browser.new_page()
+    page.goto("https://www.w3schools.com/html/html_tables.asp")
+
+    # Highlight the first match using `window.find`
+    page.evaluate("() => window.find('Maria Anders')")
+
+    # Now extract the DOM element that contains the selection
+    element_html = page.evaluate("""
+        () => {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return null;
+
+            const range = selection.getRangeAt(0);
+            const node = range.startContainer;
+
+            // Traverse up to the parent element (like a row)
+            const element = node.nodeType === 3 ? node.parentElement : node;
+            return element.outerHTML;
+        }
+    """)
+
+    print("Highlighted element:\n", element_html)
+
+    browser.close()
