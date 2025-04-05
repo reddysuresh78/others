@@ -3,13 +3,13 @@ from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=False)
     page = browser.new_page()
-    page.goto("https://example.com")  # Replace with a real page that has a table
+    page.goto("https://example.com")  # Replace with your actual page
 
-    # Find the keyword, so the row gets highlighted
-    page.evaluate("() => window.find('example')")
+    # Use window.find to highlight the cell
+    page.evaluate("() => window.find('example')")  # Replace 'example' with your target text
 
-    # Extract the table row (tr) that contains the match
-    matched_row = page.evaluate("""
+    # Combine headers + matched row into a JSON object
+    row_data = page.evaluate("""
         () => {
             const selection = window.getSelection();
             if (!selection.rangeCount) return null;
@@ -20,24 +20,28 @@ with sync_playwright() as p:
             const tr = node.parentElement.closest("tr");
             if (!tr) return null;
 
-            // Extract cell text
-            return Array.from(tr.cells).map(cell => cell.textContent.trim());
-        }
-    """)
+            // Find the table this row belongs to
+            const table = tr.closest("table");
+            if (!table) return null;
 
-    print("Matched Row:", matched_row)
-
-    # Get the table headers
-    headers = page.evaluate("""
-        () => {
-            const table = document.querySelector("table");
-            if (!table) return [];
-
+            // Get headers from the first row in thead or the first tr
             const headerRow = table.querySelector("thead tr") || table.querySelector("tr");
-            return Array.from(headerRow.cells).map(cell => cell.textContent.trim());
+            const headers = Array.from(headerRow.cells).map(cell => cell.textContent.trim());
+
+            // Get the values from the matched row
+            const values = Array.from(tr.cells).map(cell => cell.textContent.trim());
+
+            // Build a dictionary (header: value)
+            const rowObject = {};
+            headers.forEach((header, i) => {
+                rowObject[header] = values[i] || null;
+            });
+
+            return rowObject;
         }
     """)
 
-    print("Headers:", headers)
+    print("Matched Row as JSON:")
+    print(row_data)
 
     browser.close()
