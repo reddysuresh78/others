@@ -1,18 +1,43 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Prompt Example</title>
-    <script>
-      function askUser() {
-        const userInput = prompt("Please enter your name:");
-        if (userInput !== null) {
-          document.getElementById("output").textContent = "Hello, " + userInput + "!";
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=False)
+    page = browser.new_page()
+    page.goto("https://example.com")  # Replace with a real page that has a table
+
+    # Find the keyword, so the row gets highlighted
+    page.evaluate("() => window.find('example')")
+
+    # Extract the table row (tr) that contains the match
+    matched_row = page.evaluate("""
+        () => {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return null;
+
+            const node = selection.anchorNode;
+            if (!node) return null;
+
+            const tr = node.parentElement.closest("tr");
+            if (!tr) return null;
+
+            // Extract cell text
+            return Array.from(tr.cells).map(cell => cell.textContent.trim());
         }
-      }
-    </script>
-  </head>
-  <body>
-    <button onclick="askUser()">Click to Enter Name</button>
-    <p id="output"></p>
-  </body>
-</html>
+    """)
+
+    print("Matched Row:", matched_row)
+
+    # Get the table headers
+    headers = page.evaluate("""
+        () => {
+            const table = document.querySelector("table");
+            if (!table) return [];
+
+            const headerRow = table.querySelector("thead tr") || table.querySelector("tr");
+            return Array.from(headerRow.cells).map(cell => cell.textContent.trim());
+        }
+    """)
+
+    print("Headers:", headers)
+
+    browser.close()
