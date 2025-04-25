@@ -1,1 +1,63 @@
-https://miro.medium.com/v2/resize:fit:1400/format:webp/1*atThGr1UnAracHahum-KXQ.gif
+# Required imports
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+from langgraph.prebuilt import create_react_agent
+from langchain_openai import ChatOpenAI
+import os
+import asyncio
+
+# Configuration
+SERVER_PATH = os.path.join(os.getcwd(), "math_server.py")
+
+class MCPSessionManager:
+    def __init__(self):
+        self.server_process = None
+        self.session = None
+
+    async def start_server(self):
+        server_params = StdioServerParameters(
+            command="python",
+            args=[SERVER_PATH],
+        )
+        self.server_process = stdio_client(server_params)
+        self.read, self.write = await self.server_process.__aenter__()
+        return self.read, self.write
+
+    async def create_session(self):
+        self.session = ClientSession(self.read, self.write)
+        await self.session.initialize()
+        return self.session
+
+    async def close(self):
+        if self.session:
+            await self.session.close()
+        if self.server_process:
+            await self.server_process.__aexit__(None, None, None)
+
+async def run_agent():
+    manager = MCPSessionManager()
+    try:
+        # Start server and establish connection
+        await manager.start_server()
+        session = await manager.create_session()
+        
+        # Initialize components
+        model = ChatOpenAI(model="gpt-4o")
+        tools = await load_mcp_tools(session)
+        agent = create_react_agent(model, tools)
+        
+        # Execute query
+        response = await agent.ainvoke({
+            "messages": "Calculate (15 + 7) multiplied by 3"
+        })
+        
+        return response
+    finally:
+        # Explicit cleanup
+        await manager.close()
+
+# Usage
+if __name__ == "__main__":
+    result = asyncio.run(run_agent())
+    print(result)
