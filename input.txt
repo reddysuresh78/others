@@ -1,210 +1,104 @@
-import asyncio
-from typing import Dict, Any, List, Tuple, Optional
-import os
-
+```python
+# Create server parameters for stdio connection
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import create_react_agent
-from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemoryCheckpoint
 
 from langchain_openai import ChatOpenAI
+import asyncio
 
-# Define a class to manage the MCP client
-class MCPClientManager:
-    def __init__(self, server_params: StdioServerParameters):
-        self.server_params = server_params
-        self.read = None
-        self.write = None
-        self.session = None
-        self.tools = None
-        self.client_context = None
+model = ChatOpenAI(model="gpt-4o")
 
-    async def initialize(self):
-        """Initialize the MCP client and session"""
-        if self.session is not None:
-            return
-        
-        # Create the stdio client
-        client_context = stdio_client(self.server_params)
-        await client_context.__aenter__()
-        self.read, self.write = client_context.__enter__()
-        self.client_context = client_context
-        
-        # Create and initialize the session
-        self.session = ClientSession(self.read, self.write)
-        await self.session.__aenter__()
-        await self.session.initialize()
-        
-        # Load tools
-        self.tools = await load_mcp_tools(self.session)
-        
-        return self.tools
 
-    async def close(self):
-        """Close the session and client"""
-        if self.session is not None:
-            await self.session.__aexit__(None, None, None)
-            self.session = None
-        
-        if self.client_context is not None:
-            self.client_context.__exit__(None, None, None)
-            await self.client_context.__aexit__(None, None, None)
-            self.client_context = None
-            self.read = None
-            self.write = None
-
-# Define our state structure
-class State(Dict[str, Any]):
+async def create_session(server_params: StdioServerParameters):
     """
-    State for our MCP-powered agent
-    
-    Attributes:
-        messages: List of messages in the conversation
-        response: The agent's response
-        error: Any error that occurred
+    Creates and initializes a client session.
+
+    Args:
+        server_params: The StdioServerParameters object defining the connection to the server.
+
+    Returns:
+        A ClientSession object and the read/write streams.  Returns None, None if the connection fails.
     """
-    messages: List[Dict[str, str]]
-    response: Optional[Dict[str, Any]]
-    error: Optional[str]
-
-# Create the MCP client manager
-server_params = StdioServerParameters(
-    command="python",
-    # Make sure to update to the full absolute path to your math_server.py file
-    args=[os.path.expanduser("~/math_server.py")],  # Update this path
-)
-mcp_client_manager = MCPClientManager(server_params)
-
-# Define nodes for our graph
-async def initialize_tools(state: State) -> Dict[str, Any]:
-    """Initialize the MCP tools if not already initialized"""
     try:
-        tools = await mcp_client_manager.initialize()
-        return {"error": None}
+        read, write = await stdio_client(server_params).__aenter__()  # Open connection
+        session = ClientSession(read, write)
+        await session.initialize()  # Initialize the session
+        return session, read, write
     except Exception as e:
-        return {"error": f"Failed to initialize MCP tools: {str(e)}"}
+        print(f"Error creating session: {e}")
+        return None, None, None
 
-async def process_request(state: State) -> Dict[str, Any]:
-    """Process the request using the ReAct agent"""
-    if state.get("error"):
-        return state
-    
+
+async def close_session(session: ClientSession, read, write):
+    """
+    Closes a client session and the underlying streams.
+
+    Args:
+        session: The ClientSession object to close.
+        read: The read stream to close.
+        write: The write stream to close.
+    """
+    if session:
+        await session.__aexit__(None, None, None)  # Close the session (important!)
+    if read:
+        await read.close()
+    if write:
+        await write.close()
+
+
+async def run_agent(session: ClientSession, query: str):
+    """
+    Runs the agent using an existing ClientSession.
+
+    Args:
+        session: The ClientSession object to use.
+        query: The query to be passed to the agent.
+
+    Returns:
+        The agent's response.
+    """
     try:
-        # Get the last user message
-        last_message = next((msg["content"] for msg in reversed(state["messages"]) 
-                           if msg.get("role") == "user"), "")
-        
-        if not last_message:
-            return {"error": "No user message found"}
-        
-        # Create the language model
-        model = ChatOpenAI(model="gpt-4o")
-        
-        # Create the agent
-        agent = create_react_agent(model, mcp_client_manager.tools)
-        
-        # Invoke the agent
-        agent_response = await agent.ainvoke({"messages": last_message})
-        
-        # Format the response
-        assistant_message = {
-            "role": "assistant",
-            "content": agent_response["messages"][-1].content
-        }
-        
-        # Add to messages
-        new_messages = state["messages"] + [assistant_message]
-        
-        return {
-            "messages": new_messages,
-            "response": agent_response,
-            "error": None
-        }
+        tools = await load_mcp_tools(session)
+        agent = create_react_agent(model, tools)
+        agent_response = await agent.ainvoke({"messages": query})
+        return agent_response
     except Exception as e:
-        return {"error": f"Error processing request: {str(e)}"}
+        print(f"Error running agent: {e}")
+        return None
 
-async def handle_error(state: State) -> Dict[str, Any]:
-    """Handle any errors that occurred"""
-    error_message = {
-        "role": "assistant",
-        "content": f"An error occurred: {state['error']}"
-    }
-    
-    new_messages = state["messages"] + [error_message]
-    
-    return {
-        "messages": new_messages
-    }
 
-# Define the graph
-def build_mcp_agent_graph():
-    """Build the graph for our MCP-powered agent"""
-    graph = StateGraph(State)
-    
-    # Add nodes
-    graph.add_node("initialize_tools", initialize_tools)
-    graph.add_node("process_request", process_request)
-    graph.add_node("handle_error", handle_error)
-    
-    # Add edges
-    graph.add_edge("initialize_tools", "process_request")
-    
-    # Add conditional edges
-    graph.add_conditional_edges(
-        "initialize_tools",
-        lambda state: "handle_error" if state.get("error") else "process_request",
-        {
-            "handle_error": "handle_error",
-            "process_request": "process_request"
-        }
-    )
-    
-    graph.add_conditional_edges(
-        "process_request",
-        lambda state: "handle_error" if state.get("error") else END,
-        {
-            "handle_error": "handle_error"
-        }
-    )
-    
-    # Set the entry point
-    graph.set_entry_point("initialize_tools")
-    
-    return graph
-
-# Example usage
+# Example Usage (outside the original block):
 async def main():
+    server_params = StdioServerParameters(
+        command="python",
+        # Make sure to update to the full absolute path to your math_server.py file
+        args=["/path/to/math_server.py"],
+    )
+
+    session, read, write = await create_session(server_params)
+    if session is None:
+        print("Failed to create session.  Exiting.")
+        return
+
     try:
-        # Create and compile the graph
-        graph = build_mcp_agent_graph()
-        checkpoint = MemoryCheckpoint()
-        app = graph.compile(checkpointer=checkpoint)
-        
-        # Process multiple requests in sequence
-        request1 = {
-            "messages": [{"role": "user", "content": "what's (3 + 5) x 12?"}]
-        }
-        
-        request2 = {
-            "messages": [{"role": "user", "content": "what's the square root of 144?"}]
-        }
-        
-        # Process the first request
-        print("Processing first request...")
-        result1 = await app.ainvoke(request1)
-        print(f"Result 1: {result1['messages'][-1]['content']}")
-        
-        # Process the second request (reusing the same MCP client)
-        print("\nProcessing second request...")
-        result2 = await app.ainvoke(request2)
-        print(f"Result 2: {result2['messages'][-1]['content']}")
-        
+        # Example 1
+        query1 = "what's (3 + 5) x 12?"
+        response1 = await run_agent(session, query1)
+        print(f"Agent Response 1: {response1}")
+
+        # Example 2 (another request using the same session)
+        query2 = "what is 2 squared plus 3 squared?"
+        response2 = await run_agent(session, query2)
+        print(f"Agent Response 2: {response2}")
+
     finally:
-        # Close the MCP client
-        await mcp_client_manager.close()
+        await close_session(session, read, write)  # Ensure the session is closed, even if errors occur.
+
 
 if __name__ == "__main__":
     asyncio.run(main())
+```
+  
