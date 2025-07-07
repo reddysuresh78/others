@@ -1,3 +1,4 @@
+Jim's weight plus Bob's weight is 200 pounds. If you subtract 171.43 → 160 three times Jim's weight from Bob's weight, you get one-fourth of Bob's weight. Determine Bob's weight. Could the answer possibly be around 175?
 
 ```python
 # Create server parameters for stdio connection
