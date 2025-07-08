@@ -1,4 +1,9 @@
-Jim's weight plus Bob's weight is 200 pounds. If you subtract 171.43 → 160 three times Jim's weight from Bob's weight, you get one-fourth of Bob's weight. Determine Bob's weight. Could the answer possibly be around 175?
+📄 Abstract:
+Agentic AI is transforming how we build intelligent systems — shifting from static bots to goal-driven, autonomous entities. This session explores how to engineer agentic applications using planning, memory, and decision loops, while ensuring interoperability through open protocols like MCP and A2A. You'll learn how to structure modular agent workflows and apply common design patterns across leading frameworks to build scalable, adaptable AI systems.
+
+🎯 What the Audience Will Learn:
+By the end of the session, attendees will understand what defines Agentic AI, how to design agent workflows with planning and memory, and how to use protocols like MCP/A2A for interoperability. They'll explore key frameworks and walk away with patterns and best practices to build real-world agentic applications that are modular, composable, and future-ready.
+
 
 ```python
 # Create server parameters for stdio connection
