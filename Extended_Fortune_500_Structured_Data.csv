@@ -1,0 +1,11 @@
+Company,Revenue (Billion USD),Net Income (Billion USD),Total Assets (Billion USD),Total Liabilities (Billion USD),ROE (%),Debt-to-Equity Ratio,Employees,Stock Price (USD),Industry,Headquarters
+Apple,486.9,29.97,938.49,534.5,28.4,0.27,57698,3178.63,Technology,"Cupertino, CA"
+Microsoft,278.56,40.94,344.78,128.44,10.47,1.18,79606,394.8,Technology,"Redmond, WA"
+Amazon,441.74,26.5,340.61,125.77,27.56,1.49,103369,1113.17,E-commerce,"Seattle, WA"
+Berkshire Hathaway,414.93,72.82,813.84,320.25,23.53,2.33,126519,1036.08,Financials,"Omaha, NE"
+Alphabet,207.87,58.37,440.17,360.4,11.34,0.32,95502,1986.48,Technology,"Mountain View, CA"
+ExxonMobil,432.81,76.38,700.37,275.57,19.15,1.13,145626,2028.64,Energy,"Irving, TX"
+UnitedHealth Group,110.49,96.46,538.96,413.15,11.04,2.22,58959,879.39,Healthcare,"Minnetonka, MN"
+CVS Health,384.86,67.44,671.79,253.57,21.76,2.12,111538,1957.74,Healthcare,"Woonsocket, RI"
+Toyota,126.66,63.61,594.6,343.43,18.11,1.52,146127,2188.04,Automotive,"Toyota City, Japan"
+McKesson,393.25,28.31,516.49,221.33,26.1,1.61,62474,548.25,Healthcare,"Irving, TX"
