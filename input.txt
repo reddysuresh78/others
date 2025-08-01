@@ -1,111 +1,72 @@
-📄 Abstract:
-Agentic AI is transforming how we build intelligent systems — shifting from static bots to goal-driven, autonomous entities. This session explores how to engineer agentic applications using planning, memory, and decision loops, while ensuring interoperability through open protocols like MCP and A2A. You'll learn how to structure modular agent workflows and apply common design patterns across leading frameworks to build scalable, adaptable AI systems.
+import functools
+import jwt
+from fastmcp import MCPError, request_context
 
-🎯 What the Audience Will Learn:
-By the end of the session, attendees will understand what defines Agentic AI, how to design agent workflows with planning and memory, and how to use protocols like MCP/A2A for interoperability. They'll explore key frameworks and walk away with patterns and best practices to build real-world agentic applications that are modular, composable, and future-ready.
+SECRET_KEY = "your-signing-secret"     # Or load from env/KeyVault
+ALGORITHM = "HS256"
+ISSUER = "https://auth.example.com"
 
-
-```python
-# Create server parameters for stdio connection
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-
-from langchain_mcp_adapters.tools import load_mcp_tools
-from langgraph.prebuilt import create_react_agent
-
-from langchain_openai import ChatOpenAI
-import asyncio
-
-model = ChatOpenAI(model="gpt-4o")
-
-
-async def create_session(server_params: StdioServerParameters):
-    """
-    Creates and initializes a client session.
-
-    Args:
-        server_params: The StdioServerParameters object defining the connection to the server.
-
-    Returns:
-        A ClientSession object and the read/write streams.  Returns None, None if the connection fails.
-    """
-    try:
-        read, write = await stdio_client(server_params).__aenter__()  # Open connection
-        session = ClientSession(read, write)
-        await session.initialize()  # Initialize the session
-        return session, read, write
-    except Exception as e:
-        print(f"Error creating session: {e}")
-        return None, None, None
+def authenticate(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        auth_header = request_context.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            raise MCPError(401, "Missing or invalid Authorization header")
+        token = auth_header.split(" ", 1)[1]
+        try:
+            claims = jwt.decode(
+                token,
+                SECRET_KEY,
+                algorithms=[ALGORITHM],
+                issuer=ISSUER,
+                options={"require": ["exp", "iss", "sub"]}
+            )
+        except jwt.ExpiredSignatureError:
+            raise MCPError(401, "Token has expired")
+        except jwt.InvalidTokenError as e:
+            raise MCPError(401, f"Invalid token: {str(e)}")
+        # Attach claims to context for downstream use
+        request_context.user = claims["sub"]
+        request_context.entitlements = set(claims.get("entitlements", []))
+        return func(*args, **kwargs)
+    return wrapper
 
 
-async def close_session(session: ClientSession, read, write):
-    """
-    Closes a client session and the underlying streams.
-
-    Args:
-        session: The ClientSession object to close.
-        read: The read stream to close.
-        write: The write stream to close.
-    """
-    if session:
-        await session.__aexit__(None, None, None)  # Close the session (important!)
-    if read:
-        await read.close()
-    if write:
-        await write.close()
+def require_entitlement(entitlement_name: str):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            user_ent = getattr(request_context, "entitlements", set())
+            if entitlement_name not in user_ent:
+                raise MCPError(403, f"Missing entitlement: {entitlement_name}")
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
-async def run_agent(session: ClientSession, query: str):
-    """
-    Runs the agent using an existing ClientSession.
+from fastmcp import tool
 
-    Args:
-        session: The ClientSession object to use.
-        query: The query to be passed to the agent.
+@tool("list_tools")
+@authenticate
+@require_entitlement("tools:list")
+def list_tools():
+    # business logic to list available tools
+    return {"tools": [...]}
 
-    Returns:
-        The agent's response.
-    """
-    try:
-        tools = await load_mcp_tools(session)
-        agent = create_react_agent(model, tools)
-        agent_response = await agent.ainvoke({"messages": query})
-        return agent_response
-    except Exception as e:
-        print(f"Error running agent: {e}")
-        return None
+@tool("execute_tool")
+@authenticate
+@require_entitlement("tools:execute")
+def execute_tool(tool_name: str, params: dict):
+    # business logic for tool execution
+    result = run_tool(tool_name, params)
+    return {"result": result}
 
 
-# Example Usage (outside the original block):
-async def main():
-    server_params = StdioServerParameters(
-        command="python",
-        # Make sure to update to the full absolute path to your math_server.py file
-        args=["/path/to/math_server.py"],
-    )
-
-    session, read, write = await create_session(server_params)
-    if session is None:
-        print("Failed to create session.  Exiting.")
-        return
-
-    try:
-        # Example 1
-        query1 = "what's (3 + 5) x 12?"
-        response1 = await run_agent(session, query1)
-        print(f"Agent Response 1: {response1}")
-
-        # Example 2 (another request using the same session)
-        query2 = "what is 2 squared plus 3 squared?"
-        response2 = await run_agent(session, query2)
-        print(f"Agent Response 2: {response2}")
-
-    finally:
-        await close_session(session, read, write)  # Ensure the session is closed, even if errors occur.
+jwt.encode({
+    "sub": user_id,
+    "iss": ISSUER,
+    "exp": expiration_timestamp,
+    "entitlements": ["tools:list", "tools:execute", ...]
+}, SECRET_KEY, algorithm=ALGORITHM)
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-  
