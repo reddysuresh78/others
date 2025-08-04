@@ -1,3 +1,29 @@
+flowchart TD
+    A([User Login to Studio])
+    B([Go to Control Plane])
+    C([Trigger Agent Start])
+    D([Agent: Start Process])
+    E([Lookup Dependencies<br>from JSON File])
+    F([Fetch Running Agents<br>from Agentic Registry])
+    G([Configure Fetched Agents])
+    H([Fetch Running MCP Servers])
+    I([Configure MCP Servers])
+    J([Register Agent<br>in Registry])
+    K([Agent Ready to<br>Take Traffic])
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> K
+
+
+
 import base64
 import json
 from cryptography.hazmat.primitives.asymmetric import rsa
