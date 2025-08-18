@@ -1,5 +1,5 @@
 import os
-os.environ['ARIZE_API_KEY'] = "ak-1f3268bf-71eb-4c11-9f8a-03120cf07220-NIwX1qCewFjujYpO6eSAyV_2-YUHyUEM"
+os.environ['ARIZE_API_KEY'] = "ak-"
 
 from arize.exporter import ArizeExportClient
 from arize.utils.types import Environments
