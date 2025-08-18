@@ -1,3 +1,83 @@
+import os
+os.environ['ARIZE_API_KEY'] = "ak-1f3268bf-71eb-4c11-9f8a-03120cf07220-NIwX1qCewFjujYpO6eSAyV_2-YUHyUEM"
+
+from arize.exporter import ArizeExportClient
+from arize.utils.types import Environments
+from datetime import datetime, timedelta, timezone
+from phoenix.evals import llm_classify, OpenAIModel
+import nest_asyncio, os
+import pandas as pd
+
+ 
+client = ArizeExportClient()  
+
+api_key = "dddM"
+project_name = "Suresh_test"
+
+ 
+df = client.export_model_to_df(
+    space_id = "U3BhY2U6MjYxODI6cUlwUg==",
+    model_id="Suresh_test",  #Project name
+    environment = Environments.TRACING,
+    start_time = datetime.now(timezone.utc) - timedelta(days=7),
+    end_time   = datetime.now(timezone.utc),
+)
+ 
+# Example: Aggregate all outputs in a trace
+trace_df = (
+    df.groupby("context.trace_id")
+      .agg({
+          "attributes.input.value": "first",
+          "attributes.output.value": lambda x: " ".join(x.dropna()),
+          # Add other aggregations as needed
+      })
+)
+
+TRACE_EVAL_PROMPT = """
+You are evaluating the overall quality and correctness of an LLM application's response to a user request.
+
+You will be given:
+1. The user input that initiated the trace
+2. The full output(s) generated during the trace
+
+##
+User Input:
+{attributes.input.value}
+
+Trace Output:
+{attributes.output.value}
+##
+
+Respond with exactly one word: `correct` or `incorrect`.
+- `correct` → the trace achieves the intended goal.
+- `incorrect` → the trace fails to achieve the goal or is low quality.
+"""
+
+
+nest_asyncio.apply()
+
+model = OpenAIModel(
+    api_key = os.environ["OPENAI_API_KEY"],
+    model   = "gpt-4o-mini",
+    temperature = 0.0,
+)
+
+rails = ["correct", "incorrect"]
+results = llm_classify(
+    dataframe           = trace_df,
+    template            = TRACE_EVAL_PROMPT,
+    model               = model,
+    rails               = rails,
+    provide_explanation = True,   
+    include_prompt = True,
+    verbose             = False,
+)
+
+results.to_csv("arize_evals.csv")
+
+print(results)
+
+
 flowchart TD
     A([User Login to Studio])
     B([Go to Control Plane])
