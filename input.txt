@@ -117,3 +117,69 @@ async function extractInteractiveLocators(page: Page): Promise<Record<string, { 
   await browser.close();
 })();
 
+
+
+#Prompt
+
+Here is a **consolidated prompt** suitable for any LLM (including GPT, Claude, Gemini, or enterprise models) that describes the entire workflow step-by-step and requests a cross-language solution for extracting interactive elements from a web page using Playwright, outputting a JSON object where keys are the visible text and values are the type and locator of each element:[9][10][11][12]
+
+***
+
+### Consolidated LLM Prompt
+
+**Goal:**  
+Generate code to extract all interactive UI elements from a web page (such as buttons, links, inputs, selects, radios, and checkboxes) using Playwright in either Python or TypeScript. The output should be a JSON object where each key is the visible text ("name") of an element, and the value is an object containing `"type"` and `"locator"` for that element. Only include elements where both the visible text and locator are non-empty. Locators should prefer IDs, else class (first class name), else fallback to tag name.
+
+**Details:**
+- Interactive elements: `button`, `a[href]`, `input`, `textarea`, `select`, `input[type="checkbox"]`, `input[type="radio"]`
+- "name" = visible text content of the element (`textContent`, trimmed)
+- "locator" = prioritize:
+  1. ID attribute (`#id`)
+  2. First class name (`tag.class`)
+  3. Tag name (`tag`)
+- Only include elements with non-empty name and non-empty locator
+- Output JSON where:  
+  ```json
+  {
+    "elementName": {
+      "type": "button",
+      "locator": "#submit"
+    },
+    "otherElement": {
+      "type": "link",
+      "locator": "a.nav"
+    }
+  }
+  ```
+- Ignore duplicate names or handle them by appending an index if necessary
+
+**Requirements:**
+- LLM should respond with runnable Playwright code in the requested language
+- Python code must use `playwright.sync_api` and TypeScript code must use async/await logic
+- Output JSON formatted as above
+- Comment the code for clarity
+- Do not add extraneous explanation—only code and minimal context as needed
+
+**Example:**
+> Write Playwright code (in **Python** or **TypeScript**) that:
+> - Launches Chromium
+> - Navigates to a given URL
+> - Extracts all interactive elements by the rules above
+> - Outputs a JSON file as described, mapping each element's visible text to `{type, locator}`
+
+***
+
+This prompt is comprehensive and ready for any LLM to generate the working code in either Python or TypeScript for the described UI extraction task.[10][11][12][9]
+
+[1](https://playwright.dev/docs/test-typescript)
+[2](https://www.lambdatest.com/blog/playwright-end-to-end-testing/)
+[3](https://www.youtube.com/watch?v=zfLOSJmkZiE)
+[4](https://brightdata.com/blog/ai/web-scraping-with-llm-scraper)
+[5](https://jignect.tech/enhancing-api-automation-testing-with-playwright-and-typescript-get-and-post-operations-explained/)
+[6](https://www.scribd.com/document/861225550/Playwright-TypeScript-Full-Course-by-Testers-Talk)
+[7](https://www.linkedin.com/pulse/test-automation-unleashing-power-ai-playwright-typescript-nir-tal-nd1yf)
+[8](https://www.youtube.com/watch?v=788GvvcfwTY)
+[9](https://bugbug.io/blog/testing-frameworks/playwright-locators/)
+[10](https://www.browserstack.com/guide/playwright-selectors)
+[11](https://stackoverflow.com/questions/75151754/how-can-i-select-an-element-by-id)
+[12](https://www.codekru.com/playwright/how-to-get-the-text-of-an-element-using-the-playwright)
