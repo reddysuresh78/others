@@ -1,51 +1,53 @@
-from opentelemetry.sdk.trace.export import SpanProcessor, ReadableSpan
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry import trace
-import redis
-import json
+import asyncio
+import aioredis
+from collections import defaultdict
 
-class RedisPubSubSpanProcessor(SpanProcessor):
-    def __init__(self, redis_channel, filter_fn=None, redis_host="localhost", redis_port=6379):
-        self.redis_channel = redis_channel
-        self.redis = redis.StrictRedis(host=redis_host, port=redis_port, db=0)
-        self.filter_fn = filter_fn if filter_fn else lambda span: True
+NUM_WORKERS = 5  # Change this for parallelism
 
-    def on_start(self, span: ReadableSpan, parent_context):
-        pass  # No action on start
+async def process_trace(trace_id, messages):
+    print(f"[LLM] Processing {trace_id} with {len(messages)} messages")
+    await asyncio.sleep(1)  # Simulate LLM call
+    print(f"[LLM] Done processing {trace_id}")
 
-    def on_end(self, span: ReadableSpan):
-        # Filter condition
-        if self.filter_fn(span):
-            # Convert the span data to a serializable dict
-            data = {
-                "name": span.name,
-                "span_id": format(span.context.span_id, "016x"),
-                "trace_id": format(span.context.trace_id, "032x"),
-                "attributes": dict(span.attributes),
-                "start_time": span.start_time,
-                "end_time": span.end_time,
-            }
-            self.redis.publish(self.redis_channel, json.dumps(data))
+class TraceCollector:
+    def __init__(self):
+        self.traces = defaultdict(list)
+        self.queue = asyncio.Queue()
 
-    def shutdown(self):
-        pass
+    async def message_handler(self, msg):
+        trace_id = msg.get("trace_id")
+        event = msg.get("event")
+        if event == "trace":
+            self.traces[trace_id].append(msg)
+        elif event == "trace_end":
+            collected = self.traces.pop(trace_id, [])
+            if collected:
+                await self.queue.put((trace_id, collected))
 
-    def force_flush(self, timeout_millis: int = 30000):
-        pass
+    async def trace_processor(self, worker_id=0):
+        while True:
+            trace_id, messages = await self.queue.get()
+            print(f"[Worker {worker_id}] Got trace {trace_id}")
+            await process_trace(trace_id, messages)
+            self.queue.task_done()
 
+async def main():
+    collector = TraceCollector()
+    redis = await aioredis.create_redis('redis://localhost')
 
+    # Start multiple background processors
+    for i in range(NUM_WORKERS):
+        asyncio.create_task(collector.trace_processor(worker_id=i))
 
+    # Subscribe to channel
+    channels = await redis.subscribe('traces')
+    ch1 = channels[0]
 
+    print("Listening on Redis channel: traces ...")
 
-tracer_provider = TracerProvider()
-trace.set_tracer_provider(tracer_provider)
+    while await ch1.wait_message():
+        raw_msg = await ch1.get_json()
+        await collector.message_handler(raw_msg)
 
-# Example: Only export spans whose name starts with "MyChain"
-def filter_fn(span):
-    return span.name.startswith("MyChain")
-
-tracer_provider.add_span_processor(
-    RedisPubSubSpanProcessor(redis_channel="otel-spans", filter_fn=filter_fn)
-)
-
-# Now instrument OpenInference/LangChain as usual.
+if __name__ == "__main__":
+    asyncio.run(main())
