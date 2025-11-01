@@ -2,12 +2,14 @@ Mongo document structure
 
 {
   "_id": "<ObjectId>",
-  "caller_pattern": "agentA*",          // Pattern for calling agent (wildcard supported)
-  "callee_pattern": "agentB123",        // Pattern for called agent (wildcard supported)
-  "effect": "allow",                    // "allow" or "deny"
-  "priority": 10,                      // optional, higher means higher priority
-  "description": "Allow agentA* to call agentB123"
+  "workflow_pattern": "workflowA*",    // Workflow wildcard pattern
+  "caller_pattern": "agentA*",         // Caller wildcard pattern
+  "callee_pattern": "agentB123",       // Callee wildcard pattern
+  "effect": "allow",                   // "allow" or "deny"
+  "priority": 10,                     // Priority for conflict resolution
+  "description": "Allow caller in workflowA* to call agentB123"
 }
+
 
 ========
 
@@ -55,43 +57,42 @@ import fnmatch
 
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
-def check_access(caller: str, callee: str) -> bool:
+def check_access(workflow: str, caller: str, callee: str) -> bool:
     rules_json = redis_client.get("agent_access_rules")
     if not rules_json:
         # No rules loaded: default deny
         return False
 
     rules = json.loads(rules_json)
-    matched_allow = []
-    matched_deny = []
+    deny_rules = [r for r in rules if fnmatch.fnmatch(callee, r["callee_pattern"]) and r["effect"] == "deny"]
+    allow_rules = [r for r in rules if fnmatch.fnmatch(callee, r["callee_pattern"]) and r["effect"] == "allow"]
 
-    for rule in rules:
-        # fnmatch supports '*' to match any characters in patterns
-        if fnmatch.fnmatch(caller, rule["caller_pattern"]) and fnmatch.fnmatch(callee, rule["callee_pattern"]):
-            if rule["effect"] == "deny":
-                matched_deny.append(rule)
-            else:
-                matched_allow.append(rule)
+    # Check deny rules first: deny immediately if matched
+    for rule in deny_rules:
+        if fnmatch.fnmatch(workflow, rule["workflow_pattern"]) and fnmatch.fnmatch(caller, rule["caller_pattern"]):
+            return False  # Deny and exit immediately
 
-    # Deny overrides allow
-    if matched_deny:
-        return False
+    allow_list = []
+    for rule in allow_rules:
+        # Workflow pattern must be '*' or match current workflow
+        if rule["workflow_pattern"] == "*" or fnmatch.fnmatch(workflow, rule["workflow_pattern"]):
+            # If caller does not match the rule's caller pattern, deny and exit
+            if fnmatch.fnmatch(caller, rule["caller_pattern"]):
+              allow_list.append(rule)
 
-    if matched_allow:
-        return True
-
-    # No matching rule defaults to deny
-    return False
+    # Allow if at least one allow rule matched; otherwise deny
+    return len(allow_list) > 0
 
 # Example usage
 if __name__ == "__main__":
     tests = [
-        ("agentA123", "agentB123"),   # Matches agentA* to agentB123
-        ("agentX", "anyagent"),       # Matches '*' pattern
+        ("workflowA1", "agentA123", "agentB123"),
+        ("workflowX", "agentX", "anyagent"),
     ]
 
-    for caller_agent, callee_agent in tests:
-        can_call = check_access(caller_agent, callee_agent)
-        print(f"Caller: {caller_agent}, Callee: {callee_agent}, Access allowed: {can_call}")
+    for wf, caller_agent, callee_agent in tests:
+        can_call = check_access(wf, caller_agent, callee_agent)
+        print(f"Workflow: {wf}, Caller: {caller_agent}, Callee: {callee_agent}, Access allowed: {can_call}")
+
 
 
