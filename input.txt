@@ -1,53 +1,97 @@
-import asyncio
-import aioredis
-from collections import defaultdict
+Mongo document structure
 
-NUM_WORKERS = 5  # Change this for parallelism
+{
+  "_id": "<ObjectId>",
+  "caller_pattern": "agentA*",          // Pattern for calling agent (wildcard supported)
+  "callee_pattern": "agentB123",        // Pattern for called agent (wildcard supported)
+  "effect": "allow",                    // "allow" or "deny"
+  "priority": 10,                      // optional, higher means higher priority
+  "description": "Allow agentA* to call agentB123"
+}
 
-async def process_trace(trace_id, messages):
-    print(f"[LLM] Processing {trace_id} with {len(messages)} messages")
-    await asyncio.sleep(1)  # Simulate LLM call
-    print(f"[LLM] Done processing {trace_id}")
+========
 
-class TraceCollector:
-    def __init__(self):
-        self.traces = defaultdict(list)
-        self.queue = asyncio.Queue()
+Load redis rules to mongo
 
-    async def message_handler(self, msg):
-        trace_id = msg.get("trace_id")
-        event = msg.get("event")
-        if event == "trace":
-            self.traces[trace_id].append(msg)
-        elif event == "trace_end":
-            collected = self.traces.pop(trace_id, [])
-            if collected:
-                await self.queue.put((trace_id, collected))
 
-    async def trace_processor(self, worker_id=0):
-        while True:
-            trace_id, messages = await self.queue.get()
-            print(f"[Worker {worker_id}] Got trace {trace_id}")
-            await process_trace(trace_id, messages)
-            self.queue.task_done()
 
-async def main():
-    collector = TraceCollector()
-    redis = await aioredis.create_redis('redis://localhost')
+import pymongo
+import redis
+import json
 
-    # Start multiple background processors
-    for i in range(NUM_WORKERS):
-        asyncio.create_task(collector.trace_processor(worker_id=i))
+# Connect to MongoDB and Redis
+mongo_client = pymongo.MongoClient("mongodb://localhost:27017")
+db = mongo_client["agent_auth_db"]
+rules_collection = db["access_rules"]
 
-    # Subscribe to channel
-    channels = await redis.subscribe('traces')
-    ch1 = channels[0]
+redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
-    print("Listening on Redis channel: traces ...")
+def load_rules_to_redis():
+    rules = list(rules_collection.find({}))
+    # Clear existing rules in Redis
+    redis_client.delete("agent_access_rules")
 
-    while await ch1.wait_message():
-        raw_msg = await ch1.get_json()
-        await collector.message_handler(raw_msg)
+    # Store as a JSON list string for simplicity
+    rules_json = json.dumps([{
+        "caller_pattern": r["caller_pattern"],
+        "callee_pattern": r["callee_pattern"],
+        "effect": r["effect"],
+        "priority": r.get("priority", 0)
+    } for r in rules])
+
+    redis_client.set("agent_access_rules", rules_json)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    load_rules_to_redis()
+
+
+========
+
+Rules validator
+
+import redis
+import json
+import fnmatch
+
+redis_client = redis.Redis(host='localhost', port=6379, db=0)
+
+def check_access(caller: str, callee: str) -> bool:
+    rules_json = redis_client.get("agent_access_rules")
+    if not rules_json:
+        # No rules loaded: default deny
+        return False
+
+    rules = json.loads(rules_json)
+    matched_allow = []
+    matched_deny = []
+
+    for rule in rules:
+        # fnmatch supports '*' to match any characters in patterns
+        if fnmatch.fnmatch(caller, rule["caller_pattern"]) and fnmatch.fnmatch(callee, rule["callee_pattern"]):
+            if rule["effect"] == "deny":
+                matched_deny.append(rule)
+            else:
+                matched_allow.append(rule)
+
+    # Deny overrides allow
+    if matched_deny:
+        return False
+
+    if matched_allow:
+        return True
+
+    # No matching rule defaults to deny
+    return False
+
+# Example usage
+if __name__ == "__main__":
+    tests = [
+        ("agentA123", "agentB123"),   # Matches agentA* to agentB123
+        ("agentX", "anyagent"),       # Matches '*' pattern
+    ]
+
+    for caller_agent, callee_agent in tests:
+        can_call = check_access(caller_agent, callee_agent)
+        print(f"Caller: {caller_agent}, Callee: {callee_agent}, Access allowed: {can_call}")
+
+
