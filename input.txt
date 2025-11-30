@@ -1,3 +1,32 @@
+def my_before_model_callback(
+    callback_context: CallbackContext, 
+    llm_request: LlmRequest
+) -> Optional[LlmResponse]:
+    # Filter out messages containing "HI" or "HELLO" (case-insensitive)
+    filtered_contents = []
+    keywords = {"HI", "HELLO"}
+    
+    for content in llm_request.contents:
+        if content.parts:
+            text = content.parts[0].text.lower() if content.parts[0].text else ""
+            if not any(keyword.lower() in text for keyword in keywords):
+                filtered_contents.append(content)
+    
+    # Update the request with filtered messages
+    llm_request.contents = filtered_contents
+    
+    # Optional: Log or skip if all messages filtered
+    if not filtered_contents:
+        return LlmResponse(
+            content=types.Content(
+                role="model", 
+                parts=[types.Part(text="No valid messages after filtering.")]
+            )
+        )
+    
+    return None  # Proceed to LLM with filtered contents
+
+
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
