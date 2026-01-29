@@ -1,6 +1,4 @@
-BHARAT CHANDRA
-Hyderabad, India
-bharat.chandra200@gmail.com | +91-9676085525 | www.linkedin.com/in/bharatchandra-tech/
+
 
 
 def my_before_model_callback(
