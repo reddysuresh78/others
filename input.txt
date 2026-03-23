@@ -1,179 +1,74 @@
-
-
-
-def my_before_model_callback(
-    callback_context: CallbackContext, 
-    llm_request: LlmRequest
-) -> Optional[LlmResponse]:
-    # Filter out messages containing "HI" or "HELLO" (case-insensitive)
-    filtered_contents = []
-    keywords = {"HI", "HELLO"}
-    
-    for content in llm_request.contents:
-        if content.parts:
-            text = content.parts[0].text.lower() if content.parts[0].text else ""
-            if not any(keyword.lower() in text for keyword in keywords):
-                filtered_contents.append(content)
-    
-    # Update the request with filtered messages
-    llm_request.contents = filtered_contents
-    
-    # Optional: Log or skip if all messages filtered
-    if not filtered_contents:
-        return LlmResponse(
-            content=types.Content(
-                role="model", 
-                parts=[types.Part(text="No valid messages after filtering.")]
-            )
-        )
-    
-    return None  # Proceed to LLM with filtered contents
-
-
-from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from starlette.routing import Route
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from langgraph.prebuilt import create_react_agent
-
-# MCP server URL
-MCP_SERVER_URL = "http://localhost:8000/mcp"
-
-async def handle_request(request: Request):
-    # Extract bearer token from incoming HTTP Authorization header
-    auth_header = request.headers.get("Authorization", "")
-    bearer_token = ""
-    if auth_header.lower().startswith("bearer "):
-        bearer_token = auth_header[7:]  # strip "Bearer "
-
-    # Create or update MCP client headers dynamically per request
-    mcp_client = MultiServerMCPClient({
-        "default_server": {
-            "transport": "streamable_http",
-            "url": MCP_SERVER_URL,
-            "headers": {
-                "Authorization": f"Bearer {bearer_token}"
-            },
-        }
-    })
-
-    # Fetch tools for this client from MCP server dynamically
-    tools = await mcp_client.get_tools()
-
-    # Create agent with fetched tools
-    agent = create_react_agent("openai:gpt-4.1", tools)
-
-    # Example agent invocation
-    response = await agent.ainvoke({"messages": "Hello MCP with dynamic token!"})
-
-    return JSONResponse({"response": response})
-
-routes = [
-    Route("/agent", handle_request, methods=["POST"])
-]
-
-app = Starlette(routes=routes)
-
-
-
-
-
-Mongo document structure
-
-{
-  "_id": "<ObjectId>",
-  "workflow_pattern": "workflowA*",    // Workflow wildcard pattern
-  "caller_pattern": "agentA*",         // Caller wildcard pattern
-  "callee_pattern": "agentB123",       // Callee wildcard pattern
-  "effect": "allow",                   // "allow" or "deny"
-  "priority": 10,                     // Priority for conflict resolution
-  "description": "Allow caller in workflowA* to call agentB123"
-}
-
-
-========
-
-Load redis rules to mongo
-
-
-
-import pymongo
-import redis
-import json
-
-# Connect to MongoDB and Redis
-mongo_client = pymongo.MongoClient("mongodb://localhost:27017")
-db = mongo_client["agent_auth_db"]
-rules_collection = db["access_rules"]
-
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
-
-def load_rules_to_redis():
-    rules = list(rules_collection.find({}))
-    # Clear existing rules in Redis
-    redis_client.delete("agent_access_rules")
-
-    # Store as a JSON list string for simplicity
-    rules_json = json.dumps([{
-        "caller_pattern": r["caller_pattern"],
-        "callee_pattern": r["callee_pattern"],
-        "effect": r["effect"],
-        "priority": r.get("priority", 0)
-    } for r in rules])
-
-    redis_client.set("agent_access_rules", rules_json)
-
-if __name__ == "__main__":
-    load_rules_to_redis()
-
-
-========
-
-Rules validator
-
-import redis
-import json
-import fnmatch
-
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
-
-def check_access(workflow: str, caller: str, callee: str) -> bool:
-    rules_json = redis_client.get("agent_access_rules")
-    if not rules_json:
-        # No rules loaded: default deny
-        return False
-
-    rules = json.loads(rules_json)
-    deny_rules = [r for r in rules if fnmatch.fnmatch(callee, r["callee_pattern"]) and r["effect"] == "deny"]
-    allow_rules = [r for r in rules if fnmatch.fnmatch(callee, r["callee_pattern"]) and r["effect"] == "allow"]
-
-    # Check deny rules first: deny immediately if matched
-    for rule in deny_rules:
-        if fnmatch.fnmatch(workflow, rule["workflow_pattern"]) and fnmatch.fnmatch(caller, rule["caller_pattern"]):
-            return False  # Deny and exit immediately
-
-    allow_list = []
-    for rule in allow_rules:
-        # Workflow pattern must be '*' or match current workflow
-        if rule["workflow_pattern"] == "*" or fnmatch.fnmatch(workflow, rule["workflow_pattern"]):
-            # If caller does not match the rule's caller pattern, deny and exit
-            if fnmatch.fnmatch(caller, rule["caller_pattern"]):
-              allow_list.append(rule)
-
-    # Allow if at least one allow rule matched; otherwise deny
-    return len(allow_list) > 0
-
-# Example usage
-if __name__ == "__main__":
-    tests = [
-        ("workflowA1", "agentA123", "agentB123"),
-        ("workflowX", "agentX", "anyagent"),
-    ]
-
-    for wf, caller_agent, callee_agent in tests:
-        can_call = check_access(wf, caller_agent, callee_agent)
-        print(f"Workflow: {wf}, Caller: {caller_agent}, Callee: {callee_agent}, Access allowed: {can_call}")
-
-
-
+| **Intent**    | **Sub-Intent**      | **Actual Phrase / Pattern**   |
+| ------------- | ------------------- | ----------------------------- |
+| FOLLOWUP      | Reference Words     | this                          |
+| FOLLOWUP      | Reference Words     | that                          |
+| FOLLOWUP      | Reference Words     | it                            |
+| FOLLOWUP      | Reference Words     | those                         |
+| FOLLOWUP      | Reference Words     | these                         |
+| FOLLOWUP      | Reference Words     | they                          |
+| FOLLOWUP      | Reference Words     | them                          |
+| FOLLOWUP      | Continuation        | tell me more                  |
+| FOLLOWUP      | Continuation        | go deeper                     |
+| FOLLOWUP      | Continuation        | explain more                  |
+| FOLLOWUP      | Continuation        | continue                      |
+| FOLLOWUP      | Continuation        | what else                     |
+| FOLLOWUP      | Continuation        | anything else                 |
+| FOLLOWUP      | Continuation        | and then                      |
+| FOLLOWUP      | Continuation        | what about                    |
+| FOLLOWUP      | Continuation        | how about                     |
+| FOLLOWUP      | Contextual Question | how does this help            |
+| FOLLOWUP      | Contextual Question | why is that important         |
+| FOLLOWUP      | Contextual Question | where is this used            |
+| FOLLOWUP      | Contextual Question | when should I use this        |
+| FOLLOWUP      | Contextual Question | can you elaborate on this     |
+| FOLLOWUP      | Add-on              | also explain                  |
+| FOLLOWUP      | Add-on              | in addition to that           |
+| FOLLOWUP      | Add-on              | along with this               |
+| FOLLOWUP      | Add-on              | what else should I know       |
+| CLARIFICATION | Meaning             | what does X mean              |
+| CLARIFICATION | Meaning             | what is meant by              |
+| CLARIFICATION | Meaning             | what is X here                |
+| CLARIFICATION | Meaning             | define X                      |
+| CLARIFICATION | Meaning             | meaning of X                  |
+| CLARIFICATION | Confusion           | I didn’t understand           |
+| CLARIFICATION | Confusion           | not clear                     |
+| CLARIFICATION | Confusion           | can you clarify               |
+| CLARIFICATION | Confusion           | can you explain that part     |
+| CLARIFICATION | Confusion           | what do you mean by           |
+| CLARIFICATION | Detail              | how exactly                   |
+| CLARIFICATION | Detail              | why exactly                   |
+| CLARIFICATION | Detail              | what is happening here        |
+| CLARIFICATION | Detail              | how does this work internally |
+| CLARIFICATION | Term Focus          | what is saturation            |
+| CLARIFICATION | Term Focus          | what is tf-idf here           |
+| CLARIFICATION | Term Focus          | what is this term             |
+| COMPARE       | Direct              | compare                       |
+| COMPARE       | Direct              | difference between            |
+| COMPARE       | Direct              | what is the difference        |
+| COMPARE       | Direct              | distinguish                   |
+| COMPARE       | Versus              | A vs B                        |
+| COMPARE       | Versus              | A versus B                    |
+| COMPARE       | Versus              | A or B                        |
+| COMPARE       | Preference          | which is better               |
+| COMPARE       | Preference          | which one should I use        |
+| COMPARE       | Preference          | which is faster               |
+| COMPARE       | Preference          | which is more efficient       |
+| COMPARE       | Trade-off           | pros and cons                 |
+| COMPARE       | Trade-off           | advantages and disadvantages  |
+| COMPARE       | Trade-off           | benefits of A over B          |
+| SUMMARIZE     | Explicit            | summarize                     |
+| SUMMARIZE     | Explicit            | give summary                  |
+| SUMMARIZE     | Explicit            | short summary                 |
+| SUMMARIZE     | Explicit            | brief explanation             |
+| SUMMARIZE     | Explicit            | in short                      |
+| SUMMARIZE     | Format              | in 3 points                   |
+| SUMMARIZE     | Format              | in bullet points              |
+| SUMMARIZE     | Format              | in one paragraph              |
+| SUMMARIZE     | Format              | tl;dr                         |
+| SUMMARIZE     | Simplify            | explain simply                |
+| SUMMARIZE     | Simplify            | make it simple                |
+| SUMMARIZE     | Simplify            | easy explanation              |
+| SUMMARIZE     | Simplify            | for beginners                 |
+| SUMMARIZE     | Condensed           | key takeaways                 |
+| SUMMARIZE     | Condensed           | main points                   |
+| SUMMARIZE     | Condensed           | gist of it                    |
