@@ -1,4 +1,3 @@
-I have built a generative AI platform for my organization. Other teams use my platform to build gen ai use cases. I want to support evals for these generative usecases. we curently use Arize for tracing. I need to come up with a strategy to suport evals in the folloiwng scenarios. 1. Select the best LLM for a given use case based on evals 2. Once the agents/gen ai app is built, run the evals during the CI/CD process 3. Run evals while the application is running in production I also want to understand Eval driven development and see how can i support it, which tooling helps to do that. how the eval resutls can be shown on the dashboard etc.. Tell me which metrics need to be measusred typically gen ai application vs agentic ai world.
 
 
 
