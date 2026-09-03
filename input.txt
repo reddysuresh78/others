@@ -1,4 +1,53 @@
+for the following create an image:
 
+Request arrives
+      │
+      ▼
+Extract Authorization header
+      │
+      ▼
+Is Bearer token present?
+      │
+      ├── NO ──► 401 Unauthorized
+      │
+      ▼
+Parse JWT
+      │
+      ▼
+Verify signature
+      │
+      ▼
+Is issuer trusted?
+      │
+      ├── NO ──► 401
+      │
+      ▼
+Is audience = tachyon?
+      │
+      ├── NO ──► 401
+      │
+      ▼
+Is token expired?
+      │
+      ├── YES ──► 401
+      │
+      ▼
+Is token not-yet-valid?
+      │
+      ├── YES ──► 401
+      │
+      ▼
+Is required scope present?
+      │
+      ├── NO ──► 403
+      │
+      ▼
+Are model/tenant policies satisfied?
+      │
+      ├── NO ──► 403
+      │
+      ▼
+Forward request to LLM
 
 
 | **Intent**    | **Sub-Intent**      | **Actual Phrase / Pattern**   |
