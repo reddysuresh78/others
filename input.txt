@@ -1,3 +1,33 @@
+import os
+# Prevent background library multi-threading conflicts on macOS
+os.environ["use_tf"] = "false"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+import laya_mlx
+
+# CHANGE THIS LINE: Replace with the actual path to your downloaded folder
+LOCAL_MODEL_PATH = "./models/laya-mlx" 
+
+# Initialize the model using your local files
+agent = laya_mlx.load_model(
+    LOCAL_MODEL_PATH, 
+    compile=True, 
+    pad_to_multiple=16, 
+    cache_prompts=True
+)
+
+state = {"conversation": ["My payment went through but my service is down."]}
+question = {
+    "type": "choice",
+    "text": "Which team should handle this?",
+    "choices": ["billing", "technical", "sales", "other"],
+    "name": "route"
+}
+
+result = agent.predict(state, [question])
+print(result)
+
+
 for the following create an image:
 
 Request arrives
